@@ -1,0 +1,8 @@
+node_modules/
+dist/
+test-results/
+playwright-report/
+.DS_Store
+assets/icon.icns
+.scratch/**/evidence/
+.scratch/**/icon-preview.png

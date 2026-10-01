@@ -1,0 +1,13 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'none'">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>LocalDeck</title><link rel="stylesheet" href="style.css">
+</head>
+<body>
+<aside><header><h1>LocalDeck</h1><span id="summary">Local services</span></header><nav id="services" aria-label="Services"></nav><footer>Native processes. No virtual machine.</footer></aside>
+<main><div class="toolbar"><span>Services</span><div class="toolbar-status"><span id="background-status" class="background-status" data-state="connecting" role="status" aria-label="Background connection" aria-live="polite" title="Connection to the background manager. Service health is shown separately."><span class="indicator" aria-hidden="true"></span><span>Background</span><span id="background-label">Connecting</span></span><button id="refresh" title="Refresh services" disabled>Refresh</button></div></div><div id="error" role="alert" hidden></div><section id="detail"><div class="empty"><h2>Your local services</h2><p>Ask your Agent to register a service in LocalDeck.</p></div></section></main>
+<script src="renderer.js"></script>
+</body></html>

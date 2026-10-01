@@ -1,0 +1,28 @@
+const {test}=require('node:test');
+const assert=require('node:assert/strict');
+const fs=require('node:fs/promises');
+const path=require('node:path');
+const YAML=require('yaml');
+const {fixture,web,reachable,waitFor,cleanup,exec}=require('./helpers.cjs');
+test('finite recovery stops a crash loop; manual start restores service and a retry budget',async t=>{
+ const {home,manager}=await fixture();t.after(()=>cleanup(manager));
+ const executable=path.join(home,'recover.cjs');
+ await fs.writeFile(executable,`if(require('fs').existsSync(${JSON.stringify(path.join(home,'broken'))})){console.log('Broken configuration');process.exit(7);}require(${JSON.stringify(path.join(__dirname,'web.cjs'))});`);
+ const command=`exec "${process.execPath}" "${executable}" "${home}" "web"`;
+ await fs.writeFile(manager.config,YAML.stringify({version:'0.5',processes:{web:{...web(home),command}}}));
+ await manager.ensure();await manager.action('start','web');await reachable(home);
+ const original=(await manager.snapshot()).services[0].pid;
+ process.kill(original,'SIGKILL');
+ await waitFor(async()=>{const s=(await manager.snapshot()).services[0];return s.is_running&&s.pid!==original;});await reachable(home);
+ await fs.writeFile(path.join(home,'broken'),'yes');process.kill((await manager.snapshot()).services[0].pid,'SIGKILL');
+ const failed=await waitFor(async()=>{const s=(await manager.snapshot()).services[0];return !s.is_running&&s.status==='Completed'&&s.restarts===3?s:false;},15000);
+ assert.equal(failed.exit_code,7);assert.match(await manager.logs('web'),/Broken configuration/);
+ const logs=await manager.logs('web');await new Promise(r=>setTimeout(r,2500));assert.equal(await manager.logs('web'),logs);
+ await fs.rename(path.join(home,'broken'),path.join(home,'fixed'));
+ await exec(process.execPath,[path.join(__dirname,'../scripts/recover.cjs'),'web'],{env:{...process.env,LOCALDECK_HOME:home}});await reachable(home);
+ const recovered=(await manager.snapshot()).services[0];assert.equal(recovered.restarts,0);
+ const data=YAML.parse(await fs.readFile(manager.config,'utf8'));data.processes.rss=web(home,'rss');await fs.writeFile(manager.config,YAML.stringify(data));await manager.apply();
+ assert.equal((await manager.snapshot()).services.find(s=>s.name==='web').pid,recovered.pid);
+ process.kill(recovered.pid,'SIGKILL');await waitFor(async()=>{const s=(await manager.snapshot()).services[0];return s.is_running&&s.pid!==recovered.pid;});
+ await manager.action('stop','web');await new Promise(r=>setTimeout(r,2500));assert.equal((await manager.snapshot()).services[0].is_running,false);
+});

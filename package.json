@@ -1,0 +1,30 @@
+{
+  "name": "localdeck",
+  "version": "0.1.0",
+  "private": true,
+  "description": "A small macOS console for native local services",
+  "main": "src/main.cjs",
+  "scripts": {
+    "start": "electron .",
+    "test": "node --test --test-concurrency=1 tests/*.test.cjs",
+    "test:e2e": "playwright test",
+    "measure": "node tests/measure.cjs",
+    "check": "tsc --noEmit",
+    "validate": "node scripts/config.cjs --check",
+    "apply": "node scripts/config.cjs",
+    "recover": "node scripts/recover.cjs",
+    "icon": "sh scripts/build-icon.sh",
+    "skill:install": "node scripts/install-skill.cjs",
+    "build": "npm run icon && electron-packager . LocalDeck --platform=darwin --arch=arm64 --out=dist --overwrite --no-asar --icon=assets/icon.icns --app-bundle-id=dev.localdeck --ignore=\"^/(tests|docs|test-results|playwright-report|\\.scratch|\\.git)(/|$)\""
+  },
+  "dependencies": {
+    "yaml": "^2.8.1"
+  },
+  "devDependencies": {
+    "@electron/packager": "^20.3.0",
+    "@playwright/test": "^1.58.0",
+    "@types/node": "^24.0.0",
+    "electron": "^41.0.0",
+    "typescript": "^5.9.3"
+  }
+}
