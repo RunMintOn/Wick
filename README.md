@@ -2,6 +2,8 @@
 
 A small macOS console for native local services. Electron supplies the window; Process Compose runs the services. No Docker or Linux VM.
 
+![page](image.png)
+
 ## Open the app
 
 The Apple Silicon build is `dist/LocalDeck-darwin-arm64/LocalDeck.app`. You can open it directly, or copy it to Applications and open that copy. Open the app from its permanent location so the login bootstrap can find it later.
@@ -23,11 +25,11 @@ First normal launch creates the service configuration and a user-level login bac
 - Closing the window quits the console. Services continue running.
 - **Refresh** rereads status; when the background is unavailable this button becomes **Reconnect**, which tries to reconnect/start it if needed.
 
-Ask your Agent to read [the registration guide](docs/agent-registration.md) and register an installed service. You do not need to remember startup commands. The one editable file is `~/Library/Application Support/LocalDeck/services.yaml`. Generated runtime files are not configuration sources.
+Ask your Agent to read the [LocalDeck Skill](skills/localdeck/SKILL.md) and register an installed service. You do not need to remember startup commands. The one editable file is `~/Library/Application Support/LocalDeck/services.yaml`. Generated runtime files are not configuration sources.
 
 ## Agent Skill
 
-The Chinese [LocalDeck Skill](skills/localdeck/SKILL.md) covers service registration, existing-process takeover, daily operations, login autostart, recovery and troubleshooting. The existing [operation guide](docs/agent-registration.md) remains the command/configuration reference.
+The Chinese [LocalDeck Skill](skills/localdeck/SKILL.md) covers service registration, configuration and commands, existing-process takeover and data handling, daily operations, login autostart, recovery and troubleshooting.
 
 ```bash
 npm run skill:install

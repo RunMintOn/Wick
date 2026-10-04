@@ -12,7 +12,7 @@ test('install the Chinese Skill once and preserve an unrelated existing Skill',a
   await exec(process.execPath,[script],options);
   assert.equal(await fs.realpath(target),path.resolve(__dirname,'../skills/localdeck'));
   await exec(process.execPath,[script],options);
-  await fs.access(path.join(target,'references','takeover.md'));
+  await fs.access(path.join(target,'SKILL.md'));
   const otherHome=await fs.mkdtemp(path.join(os.tmpdir(),'localdeck-skill-test-'));
   const otherTarget=path.join(otherHome,'.agents','skills','localdeck');await fs.mkdir(otherTarget,{recursive:true});
   await fs.writeFile(path.join(otherTarget,'SKILL.md'),'User-owned Skill');
