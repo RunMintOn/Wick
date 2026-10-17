@@ -8,7 +8,9 @@ let fetching=false;
 let configToken='';
 let connectionError=false;
 const $=id=>document.getElementById(id);
-function status(s){if(s.status==='Not applied')return 'Not applied';if(s.is_running)return 'Running';if(s.status==='Restarting')return 'Restarting';if(s.status==='Error'||(s.status==='Completed'&&s.exit_code!==0&&s.exit_code!==-1))return 'Failed';return 'Stopped';}
+// Shell wrappers report SIGTERM as 128 + 15; Process Compose may report -1.
+const signalExit=code=>code===-1||code===143;
+function status(s){if(s.status==='Not applied')return 'Not applied';if(s.is_running)return 'Running';if(s.status==='Restarting')return 'Restarting';if(s.status==='Error'||(s.status==='Completed'&&s.exit_code!==0&&!signalExit(s.exit_code)))return 'Failed';return 'Stopped';}
 function el(tag,text,className=''){const node=document.createElement(tag);node.textContent=text;node.className=className;return node;}
 function showError(text){$('error').hidden=!text;$('error').textContent=text||'';}
 function setBackground(state){
@@ -41,7 +43,7 @@ function render(){
   for(const action of ['start','stop','restart']){const button=el('button',action[0].toUpperCase()+action.slice(1),action==='start'?'primary':'');button.id=`action-${action}`;button.disabled=busy||s.status==='Not applied'||(action==='start'?active:!active);button.onclick=()=>act(action,s.name);actions.append(button);}
   detail.append(actions);
   if(!s.is_running&&s.restarts>=s.retryLimit)detail.append(el('p',`The automatic retry budget (${s.retryLimit}) has been used. Check logs, fix the cause, then Start to get a fresh budget.`,'hint'));
-  if(!s.is_running&&s.exit_code===-1)detail.append(el('p','The process exited after a signal. This may be a manual stop; check logs if it was unexpected.','hint'));
+  if(!s.is_running&&signalExit(s.exit_code))detail.append(el('p','The process exited after a signal. This may be a manual stop; check logs if it was unexpected.','hint'));
   const address=row('Address',s.url||'—');
   if(s.url){
     const open=el('button','Open in Browser ↗','link-button');open.id='open-browser';open.onclick=async()=>{const result=await api.open(s.name);showError(result.error);};

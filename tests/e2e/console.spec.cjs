@@ -4,6 +4,37 @@ const path=require('node:path');
 const YAML=require('yaml');
 const {fixture,web,reachable,cleanup,waitFor,exec}=require('../helpers.cjs');
 const root=path.join(__dirname,'../..');
+test('SIGTERM exit after Stop is Stopped; an application error remains Failed',async()=>{
+ const {home,manager}=await fixture();let app;
+ try{
+  const script=`process.argv.splice(1,0,"web.cjs");process.on("SIGTERM",()=>process.exit(143));require(${JSON.stringify(path.join(__dirname,'../web.cjs'))});`;
+  await fs.writeFile(manager.config,YAML.stringify({version:'0.5',processes:{
+   web:{...web(home),command:`exec "${process.execPath}" -e '${script}' "${home}" web`},
+   broken:{command:`exec "${process.execPath}" -e 'process.exit(7)'`,disabled:true,availability:{restart:'no'}}
+  }}));
+  app=await electron.launch({args:[root],env:{...process.env,LOCALDECK_HOME:home}});
+  const page=await app.firstWindow();
+  await page.locator('[data-service="web"]').click();
+  await page.getByRole('button',{name:'Start',exact:true}).click();await reachable(home);
+  await page.getByRole('button',{name:'Stop',exact:true}).click();
+  await waitFor(async()=>{
+   const service=(await manager.snapshot()).services.find(s=>s.name==='web');
+   return !service.is_running&&service.exit_code===143;
+  });
+  await expect(page.locator('[data-service="web"] small')).toHaveText('Stopped');
+  await expect(page.locator('[data-service="web"] .dot')).not.toHaveClass(/failed/);
+  await expect(page.locator('.row').filter({has:page.getByText('Status',{exact:true})}).locator('.value')).toHaveText('Stopped');
+  await app.close();app=null;
+  app=await electron.launch({args:[root],env:{...process.env,LOCALDECK_HOME:home}});
+  const reopened=await app.firstWindow();
+  await expect(reopened.locator('[data-service="web"] small')).toHaveText('Stopped');
+  await reopened.locator('[data-service="broken"]').click();
+  await reopened.getByRole('button',{name:'Start',exact:true}).click();
+  await expect(reopened.locator('[data-service="broken"] small')).toHaveText('Failed');
+  await expect(reopened.locator('[data-service="broken"] .dot')).toHaveClass(/failed/);
+ }finally{if(app)await app.close();await cleanup(manager);}
+});
+
 test('control a real service, then quit and reopen without stopping it',async({},testInfo)=>{
   const {home,manager}=await fixture();let app;
   try{
