@@ -20,3 +20,40 @@ test('autostart persists without changing current state; external edits are not 
  await manager.down();await manager.ensure();await reachable(home);
  assert.equal((await manager.snapshot()).services[0].autostart,true);
 });
+
+test('source edits and apply preserve the running service; the next background start uses the new autostart policy',async t=>{
+ const {home,manager}=await fixture();t.after(()=>cleanup(manager));
+ const config={version:'0.5',processes:{web:web(home)}};
+ await fs.writeFile(manager.config,YAML.stringify(config));
+ await manager.ensure();
+ assert.equal((await manager.snapshot()).services[0].is_running,false);
+ await manager.action('start','web');await reachable(home);
+ const pid=(await manager.snapshot()).services[0].pid;
+
+ config.processes.web.disabled=false;
+ await fs.writeFile(manager.config,YAML.stringify(config));
+ await manager.apply();
+ let service=(await manager.snapshot()).services[0];
+ assert.equal(service.autostart,true);
+ assert.equal(service.is_running,true);
+ assert.equal(service.pid,pid);
+ await reachable(home);
+
+ await manager.down();await manager.ensure();await reachable(home);
+ service=(await manager.snapshot()).services[0];
+ assert.equal(service.is_running,true);
+ assert.notEqual(service.pid,pid);
+ const restartedPid=service.pid;
+
+ config.processes.web.disabled=true;
+ await fs.writeFile(manager.config,YAML.stringify(config));
+ await manager.apply();
+ service=(await manager.snapshot()).services[0];
+ assert.equal(service.autostart,false);
+ assert.equal(service.is_running,true);
+ assert.equal(service.pid,restartedPid);
+ await reachable(home);
+
+ await manager.down();await manager.ensure();
+ assert.equal((await manager.snapshot()).services[0].is_running,false);
+});
