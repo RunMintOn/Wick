@@ -1,30 +1,30 @@
 ---
-name: localdeck
-description: 在 macOS 上操作 LocalDeck：登记本机服务、接管已运行的后台进程、查询与启停服务、查看日志、设置登录自启、排查后台连接和异常恢复，以及移除登记。用户希望把终端里的 Web 或后端程序纳入图形管理时使用。
-compatibility: macOS，已安装 LocalDeck 与 Process Compose；本地源码提供配置应用与恢复脚本。
+name: wick
+description: 在 macOS 上操作 Wick：登记本机服务、接管已运行的后台进程、查询与启停服务、查看日志、设置登录自启、排查后台连接和异常恢复，以及移除登记。用户希望把终端里的 Web 或后端程序纳入图形管理时使用。
+compatibility: macOS，已安装 Wick 与 Process Compose；本地源码提供配置应用与恢复脚本。
 disable-model-invocation: true
 ---
 
-# LocalDeck 服务管理
+# Wick 服务管理
 
-LocalDeck 的控制台只负责展示和发送操作。Process Compose 管理本机服务，用户级 launchd 管理后台启动。退出控制台后服务继续运行。
+Wick 的控制台只负责展示和发送操作。Process Compose 管理本机服务，用户级 launchd 管理后台启动。退出控制台后服务继续运行。
 
-将后台程序接入 LocalDeck，指的是登记启动信息并交给现有管理器运行；服务仍是本机进程，网页仍通过浏览器访问。登记本身不包含安装程序、依赖或迁移数据，这些操作按用户的实际请求处理。
+将后台程序接入 Wick，指的是登记启动信息并交给现有管理器运行；服务仍是本机进程，网页仍通过浏览器访问。登记本身不包含安装程序、依赖或迁移数据，这些操作按用户的实际请求处理。
 
 ## 找到实际环境
 
-此 Skill 随 LocalDeck 源码保存，安装时通过目录软链接供 Agent 发现。将系统给出的 Skill 所在目录赋给 `SKILL_DIR`，先解析真实目录，再定位项目：
+此 Skill 随 Wick 源码保存，安装时通过目录软链接供 Agent 发现。将系统给出的 Skill 所在目录赋给 `SKILL_DIR`，先解析真实目录，再定位项目：
 
 ```bash
 PROJECT="$(cd -P "$SKILL_DIR" && cd ../.. && pwd -P)"
-HOME_DIR="${LOCALDECK_HOME:-$HOME/Library/Application Support/LocalDeck}"
+HOME_DIR="${WICK_HOME:-$HOME/Library/Application Support/Wick}"
 SOCKET="$HOME_DIR/control.sock"
-PC="${LOCALDECK_PC:-/opt/homebrew/bin/process-compose}"
+PC="${WICK_PC:-/opt/homebrew/bin/process-compose}"
 ```
 
-确认项目的 `package.json` 是 LocalDeck，所需脚本存在，且 `PC` 可执行。`LOCALDECK_HOME` 用于覆盖数据目录，例如隔离测试；使用时保持为绝对路径。
+确认项目的 `package.json` 的 `name` 是 `wick`，所需脚本存在，且 `PC` 可执行。`WICK_HOME` 用于覆盖数据目录，例如隔离测试；使用时保持为绝对路径。
 
-唯一配置是 `$HOME_DIR/services.yaml`，默认位于 `~/Library/Application Support/LocalDeck/services.yaml`。`runtime.yaml` 是生成的 Process Compose 配置，不是另一份配置来源。保留现有服务和设置，只改本次任务涉及的内容。
+唯一配置是 `$HOME_DIR/services.yaml`，默认位于 `~/Library/Application Support/Wick/services.yaml`。`runtime.yaml` 是生成的 Process Compose 配置，不是另一份配置来源。保留现有服务和设置，只改本次任务涉及的内容。
 
 完成条件：明确本次使用的项目、唯一配置文件、socket 与目标服务；涉及已有进程时，已查明实际 PID、命令、端口和数据位置。
 
@@ -49,15 +49,15 @@ processes:
     disabled: true
     environment:
       - TZ=Asia/Shanghai
-    x-localdeck:
+    x-wick:
       title: Memos
       url: http://localhost:5231
 ```
 
 - `disabled` 必须显式设置。`true` 关闭登录自启，仍允许手动启动；`false` 开启登录自启。修改它只影响下次后台启动，不立即启停服务。
-- `x-localdeck` 是展示信息，`title` 是名称，`url` 是访问地址。
+- `x-wick` 是展示信息，`title` 是名称，`url` 是访问地址。
 - 当前版本支持能独立运行的前台程序。不要使用 `is_disabled`、交互式/foreground 配置、定时任务、replicas、提权进程或关闭整个项目的设置。
-- 未显式配置时，LocalDeck 提供 `on_failure` 恢复策略：最多重试 3 次，间隔 2 秒；每个服务有独立日志，按 1 MiB 轮转并保留 2 份备份，内存日志缓冲为 500 行。
+- 未显式配置时，Wick 提供 `on_failure` 恢复策略：最多重试 3 次，间隔 2 秒；每个服务有独立日志，按 1 MiB 轮转并保留 2 份备份，内存日志缓冲为 500 行。
 - 可选的 `availability`、`log_location`、`log_configuration`、`shutdown` 和健康检查字段沿用 Process Compose 语法。重试次数和日志大小应有明确上限。
 
 ### 校验与应用
@@ -72,7 +72,7 @@ cd "$PROJECT" && npm run validate && npm run apply
 
 展示信息和登录自启的修改不会重启服务；启动命令变化或移除登记可能停止或重启受影响的服务。没有自动监听源配置文件的机制，编辑后需要应用。登录自启的生效时机和确认方式见下文“登录自启”。
 
-不要直接执行 `process-compose project update -f services.yaml`：它会绕过 LocalDeck 默认值，且在已测试版本中可能重启已有服务。
+不要直接执行 `process-compose project update -f services.yaml`：它会绕过 Wick 默认值，且在已测试版本中可能重启已有服务。
 
 ### 启动与检查
 
@@ -83,9 +83,9 @@ GUI 与 CLI 使用同一个私有 Unix socket。以下命令中的 `memos` 替�
 "$PC" -U -u "$SOCKET" process start memos
 ```
 
-后台未运行时，先打开一次 LocalDeck。应用配置不会启动未连接的管理器。启动后重新查询结构化状态，用 `curl` 检查实际 URL，并读取近期日志。Running 只表示进程状态，不保证 HTTP 已就绪。
+后台未运行时，先打开一次 Wick。应用配置不会启动未连接的管理器。启动后重新查询结构化状态，用 `curl` 检查实际 URL，并读取近期日志。Running 只表示进程状态，不保证 HTTP 已就绪。
 
-完成条件：目标服务由 LocalDeck 后台管理，实际入口可访问，程序与数据不依赖临时目录，其他服务未被重启。向用户说明打开方式和自启设置。
+完成条件：目标服务由 Wick 后台管理，实际入口可访问，程序与数据不依赖临时目录，其他服务未被重启。向用户说明打开方式和自启设置。
 
 ## 接管一个已经运行的进程
 
@@ -162,7 +162,7 @@ cd "$PROJECT" && npm run recover -- memos
 顶部的 Connected / Connecting / Unavailable 表示后台连接，不表示服务健康。后台可连接但配置有错时，应保留 Connected，并单独显示配置错误。
 
 1. 先查询该 socket 的管理接口。能查询时，查看目标服务状态和日志；配置报错时检查源 YAML。
-2. 不能查询时，检查用户级 launchd job `dev.localdeck.manager` 和最近的 `startup.log`。Unavailable 提供 Reconnect，重新连接并在必要时按现有机制拉起后台。
+2. 不能查询时，检查用户级 launchd job `dev.wick.manager` 和最近的 `startup.log`。Unavailable 提供 Reconnect，重新连接并在必要时按现有机制拉起后台。
 3. 后台重新启动会按登录自启设置决定启动哪些服务。它不能保证恢复崩溃前的运行列表。
 4. 端口冲突时重新核对监听进程。如果是旧实例残留，只在用户授权的目标范围内处理；不要用模糊进程名批量结束进程。
 

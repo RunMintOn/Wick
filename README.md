@@ -1,4 +1,4 @@
-# LocalDeck
+# Wick
 
 A small macOS console for native local services. Electron supplies the window; Process Compose runs the services. No Docker or Linux VM.
 
@@ -6,7 +6,7 @@ A small macOS console for native local services. Electron supplies the window; P
 
 ## Open the app
 
-The Apple Silicon build is `dist/LocalDeck-darwin-arm64/LocalDeck.app`. You can open it directly, or copy it to Applications and open that copy. Open the app from its permanent location so the login bootstrap can find it later.
+The Apple Silicon build is `dist/Wick-darwin-arm64/Wick.app`. You can open it directly, or copy it to Applications and open that copy. Open the app from its permanent location so the login bootstrap can find it later.
 
 Prerequisite:
 
@@ -25,17 +25,30 @@ First normal launch creates the service configuration and a user-level login bac
 - Closing the window quits the console. Services continue running.
 - **Refresh** rereads status; when the background is unavailable this button becomes **Reconnect**, which tries to reconnect/start it if needed.
 
-Ask your Agent to read the [LocalDeck Skill](skills/localdeck/SKILL.md) and register an installed service. You do not need to remember startup commands. The one editable file is `~/Library/Application Support/LocalDeck/services.yaml`. Generated runtime files are not configuration sources.
+Ask your Agent to read the [Wick Skill](skills/wick/SKILL.md) and register an installed service. You do not need to remember startup commands. The one editable file is `~/Library/Application Support/Wick/services.yaml`. Generated runtime files are not configuration sources.
 
 ## Agent Skill
 
-The Chinese [LocalDeck Skill](skills/localdeck/SKILL.md) covers service registration, configuration and commands, existing-process takeover and data handling, daily operations, login autostart, recovery and troubleshooting.
+The Chinese [Wick Skill](skills/wick/SKILL.md) covers service registration, configuration and commands, existing-process takeover and data handling, daily operations, login autostart, recovery and troubleshooting.
 
 ```bash
 npm run skill:install
 ```
 
-This links the repository's Skill into `~/.agents/skills/localdeck`, preserving an existing unrelated Skill. Keep the repository at its installed location. Pi discovers this shared directory; run `/reload` in an existing session or start a new session, then use `/skill:localdeck` when an explicit invocation is useful. Other Agents that support the shared Agent Skills directory can discover it too.
+This links the repository's Skill into `~/.agents/skills/wick`, preserving an existing unrelated Skill. Keep the repository at its installed location. Pi discovers this shared directory; run `/reload` in an existing session or start a new session, then use `/skill:wick` when an explicit invocation is useful. Other Agents that support the shared Agent Skills directory can discover it too.
+
+### Registering a service
+
+```mermaid
+flowchart LR
+    A[Ask your Agent] --> B[Add to services.yaml]
+    B --> C[npm run validate]
+    C -->|invalid| D[Rejected, running services untouched]
+    C -->|valid| E[npm run apply]
+    E --> F[Start and verify]
+```
+
+`services.yaml` is the only configuration source; `runtime.yaml` is generated. Always validate before applying, and never run `process-compose project update -f services.yaml` directly.
 
 ## Develop and verify
 
@@ -55,21 +68,21 @@ The application icon source is the transparent 1024×1024 PNG in `assets/icon.pn
 
 The build produces a local unsigned Apple Silicon app. It is not a signed public release. `npm run build` replaces its own generated output only.
 
-Set `LOCALDECK_HOME` to an absolute temporary directory for isolated testing. This also prevents the GUI from installing the normal login job. Integration tests use real Process Compose; login tests use distinct launchd labels and remove those jobs afterward. Run tests sequentially.
+Set `WICK_HOME` to an absolute temporary directory for isolated testing. This also prevents the GUI from installing the normal login job. Integration tests use real Process Compose; login tests use distinct launchd labels and remove those jobs afterward. Run tests sequentially.
 
 ## Background and troubleshooting
 
-- User job: `dev.localdeck.manager`, defined under your user LaunchAgents directory.
-- Private control socket: `control.sock` in the LocalDeck data directory.
+- User job: `dev.wick.manager`, defined under your user LaunchAgents directory.
+- Private control socket: `control.sock` in the Wick data directory.
 - Recent logs: last 200 lines, capped at 128 KiB in the console.
 - Service log files: native rotation, by default 1 MiB plus 2 backups.
 - Bootstrap diagnostics: `startup.log`, replaced on background startup.
 - Default crash recovery: 3 automatic retries, 2-second backoff. The count accumulates for that service's current registration; it is not a sliding time-window counter. After exhaustion, fix the cause and use the console's Start or `npm run recover -- <service>`.
 - Process Compose does not reliably identify whether signal exit `-1` was a manual stop. The console shows the exit code and an explanation rather than inventing the cause.
-- If an operation was interrupted and left `operation.lock`, check that no LocalDeck configuration/start operation is running, then move that generated lock to Trash and retry.
+- If an operation was interrupted and left `operation.lock`, check that no Wick configuration/start operation is running, then move that generated lock to Trash and retry.
 - Applying invalid configuration does not stop existing services. Fix the configuration, apply it again, then Refresh.
 
-Disabling every service's login switch leaves the lightweight manager available but starts no service. To stop the background manager for the current session, quit the console and use Process Compose's `down` command with the LocalDeck socket. To disable the login background entirely, unload `dev.localdeck.manager` and move its plist to Trash; opening the app normally installs it again.
+Disabling every service's login switch leaves the lightweight manager available but starts no service. To stop the background manager for the current session, quit the console and use Process Compose's `down` command with the Wick socket. To disable the login background entirely, unload `dev.wick.manager` and move its plist to Trash; opening the app normally installs it again.
 
 ## Validation limits
 

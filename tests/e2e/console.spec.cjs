@@ -12,7 +12,7 @@ test('SIGTERM exit after Stop is Stopped; an application error remains Failed',a
    web:{...web(home),command:`exec "${process.execPath}" -e '${script}' "${home}" web`},
    broken:{command:`exec "${process.execPath}" -e 'process.exit(7)'`,disabled:true,availability:{restart:'no'}}
   }}));
-  app=await electron.launch({args:[root],env:{...process.env,LOCALDECK_HOME:home}});
+  app=await electron.launch({args:[root],env:{...process.env,WICK_HOME:home}});
   const page=await app.firstWindow();
   await page.locator('[data-service="web"]').click();
   await page.getByRole('button',{name:'Start',exact:true}).click();await reachable(home);
@@ -25,7 +25,7 @@ test('SIGTERM exit after Stop is Stopped; an application error remains Failed',a
   await expect(page.locator('[data-service="web"] .dot')).not.toHaveClass(/failed/);
   await expect(page.locator('.row').filter({has:page.getByText('Status',{exact:true})}).locator('.value')).toHaveText('Stopped');
   await app.close();app=null;
-  app=await electron.launch({args:[root],env:{...process.env,LOCALDECK_HOME:home}});
+  app=await electron.launch({args:[root],env:{...process.env,WICK_HOME:home}});
   const reopened=await app.firstWindow();
   await expect(reopened.locator('[data-service="web"] small')).toHaveText('Stopped');
   await reopened.locator('[data-service="broken"]').click();
@@ -39,7 +39,7 @@ test('control a real service, then quit and reopen without stopping it',async({}
   const {home,manager}=await fixture();let app;
   try{
     await fs.writeFile(manager.config,YAML.stringify({version:'0.5',processes:{web:web(home)}}));
-    app=await electron.launch({args:[root],env:{...process.env,LOCALDECK_HOME:home}});
+    app=await electron.launch({args:[root],env:{...process.env,WICK_HOME:home}});
     let page=await app.firstWindow();
     await page.emulateMedia({colorScheme:null});
     await page.locator('[data-service="web"]').click();
@@ -59,7 +59,7 @@ test('control a real service, then quit and reopen without stopping it',async({}
     await expect(page.getByLabel('Start at login')).toBeChecked();
     expect((await manager.snapshot()).services[0].pid).toBe(pid);
     await app.close();app=null;await reachable(home);
-    app=await electron.launch({args:[root],env:{...process.env,LOCALDECK_HOME:home}});page=await app.firstWindow();
+    app=await electron.launch({args:[root],env:{...process.env,WICK_HOME:home}});page=await app.firstWindow();
     await expect(page.locator('#detail')).toContainText('Running');
     expect((await manager.snapshot()).services[0].pid).toBe(pid);
     await page.getByRole('button',{name:'Stop',exact:true}).click();
@@ -84,8 +84,8 @@ test('control a real service, then quit and reopen without stopping it',async({}
 test('stop remains available during crash backoff and cancels automatic recovery',async()=>{
  const {home,manager}=await fixture();let app;
  try{
-  await fs.writeFile(manager.config,YAML.stringify({version:'0.5',processes:{broken:{command:'exec /no-such-localdeck-program',disabled:true,availability:{restart:'on_failure',max_restarts:3,backoff_seconds:4}}}}));
-  app=await electron.launch({args:[root],env:{...process.env,LOCALDECK_HOME:home}});const page=await app.firstWindow();
+  await fs.writeFile(manager.config,YAML.stringify({version:'0.5',processes:{broken:{command:'exec /no-such-wick-program',disabled:true,availability:{restart:'on_failure',max_restarts:3,backoff_seconds:4}}}}));
+  app=await electron.launch({args:[root],env:{...process.env,WICK_HOME:home}});const page=await app.firstWindow();
   await page.locator('[data-service="broken"]').click();await page.getByRole('button',{name:'Start',exact:true}).click();
   await expect(page.locator('#detail')).toContainText('Restarting');
   await expect(page.getByRole('button',{name:'Stop',exact:true})).toBeEnabled();
@@ -101,8 +101,8 @@ test('browser entry belongs to Address, separate from service controls',async()=
  const {home,manager}=await fixture();let app;
  const url='http://127.0.0.1:54321/notes?view=all';
  try{
-  await fs.writeFile(manager.config,YAML.stringify({version:'0.5',processes:{web:{...web(home),'x-localdeck':{title:'Notes',url}}}}));
-  app=await electron.launch({args:[root],env:{...process.env,LOCALDECK_HOME:home}});const page=await app.firstWindow();
+  await fs.writeFile(manager.config,YAML.stringify({version:'0.5',processes:{web:{...web(home),'x-wick':{title:'Notes',url}}}}));
+  app=await electron.launch({args:[root],env:{...process.env,WICK_HOME:home}});const page=await app.firstWindow();
   await page.locator('[data-service="web"]').click();
   await expect(page.locator('.actions button')).toHaveCount(3);
   const address=page.locator('.row').filter({has:page.getByText('Address',{exact:true})});

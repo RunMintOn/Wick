@@ -10,7 +10,7 @@ test('missing executable and occupied port fail with useful logs and finite retr
  await new Promise(resolve=>occupied.listen(0,'127.0.0.1',resolve));t.after(()=>new Promise(resolve=>occupied.close(resolve)));
  const availability={restart:'on_failure',max_restarts:1,backoff_seconds:1};
  const port=occupied.address().port;
- await fs.writeFile(manager.config,YAML.stringify({version:'0.5',processes:{missing:{command:'exec /no-such-localdeck-program',disabled:true,availability},conflict:{...web(home),command:web(home).command+` ${port}`,availability}}}));
+ await fs.writeFile(manager.config,YAML.stringify({version:'0.5',processes:{missing:{command:'exec /no-such-wick-program',disabled:true,availability},conflict:{...web(home),command:web(home).command+` ${port}`,availability}}}));
  await manager.ensure();
  for(const name of ['missing','conflict']){
    await manager.action('start',name);

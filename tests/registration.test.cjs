@@ -5,13 +5,13 @@ const YAML=require('yaml');
 const {fixture,web,reachable,cleanup}=require('./helpers.cjs');
 test('Agent applies registration without restarting an unchanged service; invalid config is rejected',async t=>{
  const {home,manager}=await fixture();t.after(()=>cleanup(manager));
- const data={version:'0.5',processes:{web:{...web(home),'x-localdeck':{title:'Notes',url:'http://localhost:5231'}}}};
+ const data={version:'0.5',processes:{web:{...web(home),'x-wick':{title:'Notes',url:'http://localhost:5231'}}}};
  await fs.writeFile(manager.config,YAML.stringify(data));await manager.ensure();await manager.action('start','web');await reachable(home);
  const pid=(await manager.snapshot()).services[0].pid;
  data.processes.rss=web(home,'rss');await fs.writeFile(manager.config,YAML.stringify(data));await manager.apply();
  assert.equal((await manager.snapshot()).services.find(s=>s.name==='web').pid,pid);
  await manager.action('start','rss');await reachable(home,'rss');
- data.processes.web['x-localdeck'].title='My notes';data.processes.web.disabled=false;
+ data.processes.web['x-wick'].title='My notes';data.processes.web.disabled=false;
  await fs.writeFile(manager.config,YAML.stringify(data));await manager.apply();
  assert.equal((await manager.snapshot()).services.find(s=>s.name==='web').pid,pid);
  data.processes.web.not_a_pc_field=true;await fs.writeFile(manager.config,YAML.stringify(data));

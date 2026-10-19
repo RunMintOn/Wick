@@ -7,13 +7,13 @@ const exec=promisify(execFile);
 const quote=value=>`'${value.replaceAll("'","'\\''")}'`;
 const xml=value=>value.replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;');
 async function installLogin(manager,options={}) {
-  const label=options.label||'dev.localdeck.manager';
+  const label=options.label||'dev.wick.manager';
   const agentPath=options.agentPath||path.join(os.homedir(),'Library','LaunchAgents',label+'.plist');
   const executable=options.executable||process.execPath;
   const script=options.script||path.resolve(__dirname,'../scripts/config.cjs');
   const bootstrap=path.join(manager.home,'bootstrap.sh');
   await manager.init();
-  const body=`#!/bin/sh\nexport LOCALDECK_HOME=${quote(manager.home)}\nexport LOCALDECK_PC=${quote(manager.binary)}\nexport PATH=/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin\n: > ${quote(path.join(manager.home,'startup.log'))}\nELECTRON_RUN_AS_NODE=1 ${quote(executable)} ${quote(script)} --boot >> ${quote(path.join(manager.home,'startup.log'))} 2>&1\nresult=$?\n# A detached manager may already own this socket during the current session.\n[ "$result" = 10 ] && exit 0\n[ "$result" = 0 ] || exit "$result"\nexec ${quote(manager.binary)} -U -u ${quote(manager.socket)} -L /dev/null up -f ${quote(manager.runtime)} -t=false --keep-project --disable-dotenv 2>> ${quote(path.join(manager.home,'startup.log'))}\n`;
+  const body=`#!/bin/sh\nexport WICK_HOME=${quote(manager.home)}\nexport WICK_PC=${quote(manager.binary)}\nexport PATH=/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin\n: > ${quote(path.join(manager.home,'startup.log'))}\nELECTRON_RUN_AS_NODE=1 ${quote(executable)} ${quote(script)} --boot >> ${quote(path.join(manager.home,'startup.log'))} 2>&1\nresult=$?\n# A detached manager may already own this socket during the current session.\n[ "$result" = 10 ] && exit 0\n[ "$result" = 0 ] || exit "$result"\nexec ${quote(manager.binary)} -U -u ${quote(manager.socket)} -L /dev/null up -f ${quote(manager.runtime)} -t=false --keep-project --disable-dotenv 2>> ${quote(path.join(manager.home,'startup.log'))}\n`;
   const plist=`<?xml version="1.0" encoding="UTF-8"?>\n<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">\n<plist version="1.0"><dict>\n<key>Label</key><string>${xml(label)}</string>\n<key>ProgramArguments</key><array><string>/bin/sh</string><string>${xml(bootstrap)}</string></array>\n<key>RunAtLoad</key><true/>\n<key>KeepAlive</key><dict><key>SuccessfulExit</key><false/></dict>\n<key>ThrottleInterval</key><integer>10</integer>\n<key>StandardOutPath</key><string>/dev/null</string>\n<key>StandardErrorPath</key><string>/dev/null</string>\n</dict></plist>\n`;
   await fs.mkdir(path.dirname(agentPath),{recursive:true});
   const existing=await fs.readFile(agentPath,'utf8').catch(e=>{if(e.code==='ENOENT')return '';throw e;});

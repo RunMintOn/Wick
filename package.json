@@ -1,5 +1,5 @@
 {
-  "name": "localdeck",
+  "name": "wick",
   "version": "0.1.0",
   "private": true,
   "description": "A small macOS console for native local services",
@@ -15,7 +15,7 @@
     "recover": "node scripts/recover.cjs",
     "icon": "sh scripts/build-icon.sh",
     "skill:install": "node scripts/install-skill.cjs",
-    "build": "npm run icon && electron-packager . LocalDeck --platform=darwin --arch=arm64 --out=dist --overwrite --no-asar --icon=assets/icon.icns --app-bundle-id=dev.localdeck --ignore=\"^/(tests|docs|test-results|playwright-report|\\.scratch|\\.git)(/|$)\""
+    "build": "npm run icon && electron-packager . Wick --platform=darwin --arch=arm64 --out=dist --overwrite --no-asar --icon=assets/icon.icns --app-bundle-id=dev.wick --ignore=\"^/(tests|docs|test-results|playwright-report|\\.scratch|\\.git)(/|$)\" && sh scripts/set-display-name.sh"
   },
   "dependencies": {
     "yaml": "^2.8.1"

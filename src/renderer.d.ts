@@ -1,5 +1,5 @@
 interface Window {
-  localdeck: {
+  wick: {
     snapshot(reconnect?:boolean): Promise<any>;
     action(action:string,name:string):Promise<{ok?:boolean,error?:string}>;
     logs(name:string):Promise<{text?:string,error?:string}>;

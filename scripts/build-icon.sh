@@ -1,8 +1,8 @@
 #!/bin/sh
 set -eu
 cd "$(dirname "$0")/.."
-work=$(mktemp -d "${TMPDIR:-/tmp}/localdeck-icon.XXXXXX")
-iconset="$work/LocalDeck.iconset"
+work=$(mktemp -d "${TMPDIR:-/tmp}/wick-icon.XXXXXX")
+iconset="$work/Wick.iconset"
 mkdir "$iconset"
 for size in 16 32 128 256 512; do
   sips -z "$size" "$size" assets/icon.png --out "$iconset/icon_${size}x${size}.png" >/dev/null

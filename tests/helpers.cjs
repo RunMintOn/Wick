@@ -7,7 +7,7 @@ const YAML = require('yaml');
 const exec = promisify(execFile);
 const { ServiceManager } = require('../src/services.cjs');
 async function fixture(processes = {}) {
-  const home = await fs.mkdtemp(path.join(os.tmpdir(), 'localdeck-test-'));
+  const home = await fs.mkdtemp(path.join(os.tmpdir(), 'wick-test-'));
   const manager = new ServiceManager(home);
   await fs.writeFile(path.join(home, 'services.yaml'), YAML.stringify({version:'0.5', processes}));
   return {home, manager};

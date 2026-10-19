@@ -19,7 +19,7 @@ test('finite recovery stops a crash loop; manual start restores service and a re
  assert.equal(failed.exit_code,7);assert.match(await manager.logs('web'),/Broken configuration/);
  const logs=await manager.logs('web');await new Promise(r=>setTimeout(r,2500));assert.equal(await manager.logs('web'),logs);
  await fs.rename(path.join(home,'broken'),path.join(home,'fixed'));
- await exec(process.execPath,[path.join(__dirname,'../scripts/recover.cjs'),'web'],{env:{...process.env,LOCALDECK_HOME:home}});await reachable(home);
+ await exec(process.execPath,[path.join(__dirname,'../scripts/recover.cjs'),'web'],{env:{...process.env,WICK_HOME:home}});await reachable(home);
  const recovered=(await manager.snapshot()).services[0];assert.equal(recovered.restarts,0);
  const data=YAML.parse(await fs.readFile(manager.config,'utf8'));data.processes.rss=web(home,'rss');await fs.writeFile(manager.config,YAML.stringify(data));await manager.apply();
  assert.equal((await manager.snapshot()).services.find(s=>s.name==='web').pid,recovered.pid);

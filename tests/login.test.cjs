@@ -7,7 +7,7 @@ const {installLogin}=require('../src/login.cjs');
 const {fixture,web,reachable,cleanup,exec,waitFor}=require('./helpers.cjs');
 test('real isolated launchd job boots and supervises the background without Electron UI',async t=>{
  const {home,manager}=await fixture();
- const label=`dev.localdeck.test.${process.pid}`;
+ const label=`dev.wick.test.${process.pid}`;
  const domain=`gui/${process.getuid()}`;
  t.after(async()=>{await exec('/bin/launchctl',['bootout',`${domain}/${label}`]).catch(()=>{});await cleanup(manager);});
  await fs.writeFile(manager.config,YAML.stringify({version:'0.5',processes:{web:{...web(home),disabled:false},manual:web(home,'manual')}}));

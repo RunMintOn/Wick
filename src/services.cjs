@@ -8,14 +8,14 @@ const http = require('node:http');
 const {createHash,randomUUID}=require('node:crypto');
 const tokenOf=text=>createHash('sha256').update(text).digest('hex');
 const exec = promisify(execFile);
-const defaultHome = () => process.env.LOCALDECK_HOME || path.join(os.homedir(), 'Library', 'Application Support', 'LocalDeck');
+const defaultHome = () => process.env.WICK_HOME || path.join(os.homedir(), 'Library', 'Application Support', 'Wick');
 class ServiceManager {
   constructor(home = defaultHome()) {
     this.home = home;
     this.config = path.join(home, 'services.yaml');
     this.socket = path.join(home, 'control.sock');
     this.runtime = path.join(home,'runtime.yaml');
-    this.binary = process.env.LOCALDECK_PC || '/opt/homebrew/bin/process-compose';
+    this.binary = process.env.WICK_PC || '/opt/homebrew/bin/process-compose';
     this.starting = null;
   }
   async cli(args) {
@@ -51,7 +51,7 @@ class ServiceManager {
     for(let i=0;i<100;i++){
       try{handle=await fs.open(lock,'wx',0o600);break;}catch(e){if(e.code!=='EEXIST')throw e;await new Promise(r=>setTimeout(r,100));}
     }
-    if(!handle)throw new Error('Another LocalDeck operation is busy. If no operation is running, remove the stale operation.lock and retry.');
+    if(!handle)throw new Error('Another Wick operation is busy. If no operation is running, remove the stale operation.lock and retry.');
     try{await handle.writeFile(String(process.pid));return await operation();}finally{await handle.close();await fs.unlink(lock);}
   }
   async start() {return this.withLock(()=>this.startUnlocked());}
@@ -76,16 +76,16 @@ class ServiceManager {
       if(source.working_dir&&!path.isAbsolute(source.working_dir))throw new Error(`${name}: working_dir must be an absolute path.`);
       if(source.log_location&&!path.isAbsolute(source.log_location))throw new Error(`${name}: log_location must be an absolute path.`);
       if(source.env_file&&!path.isAbsolute(source.env_file))throw new Error(`${name}: env_file must be an absolute path.`);
-      if(source.is_foreground||source.is_daemon||source.is_interactive||source.is_tty||source.is_elevated||source.schedule||(source.replicas!==undefined&&source.replicas!==1))throw new Error(`${name}: LocalDeck supports one non-interactive foreground service per registration.`);
-      const meta=source['x-localdeck'];
+      if(source.is_foreground||source.is_daemon||source.is_interactive||source.is_tty||source.is_elevated||source.schedule||(source.replicas!==undefined&&source.replicas!==1))throw new Error(`${name}: Wick supports one non-interactive foreground service per registration.`);
+      const meta=source['x-wick'];
       if(meta){
         if(typeof meta!=='object'||Array.isArray(meta)||(meta.title!==undefined&&typeof meta.title!=='string'))throw new Error(`${name}: invalid display metadata.`);
         if(meta.url){const url=new URL(meta.url);if(!['http:','https:'].includes(url.protocol))throw new Error(`${name}: address must use HTTP or HTTPS.`);}
       }
-      const config={...source};delete config['x-localdeck'];
+      const config={...source};delete config['x-wick'];
       // Startup policy must not restart a running service when configuration is applied.
       config.disabled=previous.processes?.[name]?.disabled ?? source.disabled ?? false;
-      if(previous.processes?.[name]?.['x-localdeck-recovery'])config['x-localdeck-recovery']=previous.processes[name]['x-localdeck-recovery'];
+      if(previous.processes?.[name]?.['x-wick-recovery'])config['x-wick-recovery']=previous.processes[name]['x-wick-recovery'];
       config.availability={restart:'on_failure',backoff_seconds:2,max_restarts:3,...config.availability};
       if(config.availability.max_restarts<1||!Number.isInteger(config.availability.max_restarts)||!Number.isInteger(config.availability.backoff_seconds)||config.availability.backoff_seconds<1||!['on_failure','no'].includes(config.availability.restart)||config.availability.exit_on_end||config.availability.exit_on_skipped)throw new Error(`${name}: use a finite on_failure policy (or no), without project shutdown.`);
       config.log_location ||= path.join(this.home,'logs',`${name}.log`);
@@ -132,7 +132,7 @@ class ServiceManager {
     try{
       const {data,text}=await this.readConfig();
       return {home:this.home,background:'connected',token:tokenOf(text),services:Object.entries(data.processes).map(([name,config])=>({
-        name,title:config['x-localdeck']?.title||name,url:config['x-localdeck']?.url||'',
+        name,title:config['x-wick']?.title||name,url:config['x-wick']?.url||'',
         autostart:config.disabled!==true,retryLimit:config.availability?.max_restarts??3,status:'Not applied',...states.find(s=>s.name===name)
       }))};
     }catch(e){return {home:this.home,background:'connected',services:[],error:`Configuration unavailable.\n${e.message}`};}
@@ -150,7 +150,7 @@ class ServiceManager {
         // revision makes server-side reload re-register only this service. Using
         // its loader avoids JSON number retyping that would affect later reloads.
         const runtime=YAML.parseDocument(await fs.readFile(this.runtime,'utf8'));
-        runtime.setIn(['processes',name,'x-localdeck-recovery'],randomUUID());
+        runtime.setIn(['processes',name,'x-wick-recovery'],randomUUID());
         const pending=this.runtime+'.recovery';
         await fs.writeFile(pending,String(runtime),{mode:0o600});await fs.rename(pending,this.runtime);
         const result=await this.request('/project/configuration','POST');
@@ -195,7 +195,7 @@ class ServiceManager {
   }
   async serviceUrl(name) {
     const {data}=await this.readConfig();
-    const value=data.processes[name]?.['x-localdeck']?.url;
+    const value=data.processes[name]?.['x-wick']?.url;
     const url=new URL(value);
     if(!['http:','https:'].includes(url.protocol))throw new Error('Service address must use HTTP or HTTPS.');
     return url.href;

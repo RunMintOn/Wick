@@ -1,4 +1,4 @@
-const api=window.localdeck;
+const api=window.wick;
 let selected='';
 let services=[];
 let busy=false;

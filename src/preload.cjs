@@ -1,5 +1,5 @@
 const {contextBridge,ipcRenderer}=require('electron');
-contextBridge.exposeInMainWorld('localdeck',{
+contextBridge.exposeInMainWorld('wick',{
   snapshot:(reconnect=false)=>ipcRenderer.invoke('snapshot',reconnect),
   action:(action,name)=>ipcRenderer.invoke('action',action,name),
   logs:name=>ipcRenderer.invoke('logs',name),

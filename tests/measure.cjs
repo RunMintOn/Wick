@@ -6,14 +6,14 @@ const fs=require('node:fs/promises');const path=require('node:path');const YAML=
  const {home,manager}=await fixture();let app;
  const sampler=home+'/footprint';
  await exec('/usr/bin/cc',[path.join(__dirname,'footprint.c'),'-o',sampler]);
- const evidence=path.join(root,'.scratch/localdeck-mvp/evidence');await fs.mkdir(evidence,{recursive:true});
+ const evidence=path.join(root,'.scratch/wick-mvp/evidence');await fs.mkdir(evidence,{recursive:true});
  const report={date:new Date().toISOString(),home,metric:'RSS in KiB and proc_pid_rusage RUSAGE_INFO_V2 phys_footprint in bytes; Electron sums cover its main process and descendants, not unique physical RAM',samples:[]};
  try{
-   await fs.writeFile(manager.config,YAML.stringify({version:'0.5',processes:{notes:{...web(home,'notes'),disabled:false,'x-localdeck':{title:'Notes · test service',url:'http://localhost:5231'}},rss:{...web(home,'rss'),disabled:true,'x-localdeck':{title:'RSS · test service'}},api:{...web(home,'api'),disabled:true,'x-localdeck':{title:'Local API · test service'}}}}));
-   const executable=path.join(root,'dist/LocalDeck-darwin-arm64/LocalDeck.app/Contents/MacOS/LocalDeck');
-   app=await electron.launch({executablePath:executable,args:[],env:{...process.env,LOCALDECK_HOME:home}});
+   await fs.writeFile(manager.config,YAML.stringify({version:'0.5',processes:{notes:{...web(home,'notes'),disabled:false,'x-wick':{title:'Notes · test service',url:'http://localhost:5231'}},rss:{...web(home,'rss'),disabled:true,'x-wick':{title:'RSS · test service'}},api:{...web(home,'api'),disabled:true,'x-wick':{title:'Local API · test service'}}}}));
+   const executable=path.join(root,'dist/Wick-darwin-arm64/Wick.app/Contents/MacOS/Wick');
+   app=await electron.launch({executablePath:executable,args:[],env:{...process.env,WICK_HOME:home}});
    const page=await app.firstWindow();await page.emulateMedia({colorScheme:null});await reachable(home,'notes');
-   const data=YAML.parse(await fs.readFile(manager.config,'utf8'));data.processes.notes['x-localdeck'].url='http://127.0.0.1:'+await fs.readFile(home+'/notes.port','utf8');await fs.writeFile(manager.config,YAML.stringify(data));await manager.apply();await page.waitForTimeout(2200);
+   const data=YAML.parse(await fs.readFile(manager.config,'utf8'));data.processes.notes['x-wick'].url='http://127.0.0.1:'+await fs.readFile(home+'/notes.port','utf8');await fs.writeFile(manager.config,YAML.stringify(data));await manager.apply();await page.waitForTimeout(2200);
    await page.locator('[data-service="notes"]').click();
    await page.getByRole('button',{name:'Show logs',exact:true}).click();
    await page.waitForTimeout(1500);
