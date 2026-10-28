@@ -10,7 +10,7 @@ if(process.env.WICK_HOME){
 }
 let window;
 function createWindow(){
-  window=new BrowserWindow({width:960,height:680,minWidth:720,minHeight:500,title:'Wick',titleBarStyle:'hiddenInset',backgroundColor:'#f5f5f7',webPreferences:{preload:path.join(__dirname,'preload.cjs'),nodeIntegration:false,contextIsolation:true,sandbox:true}});
+  window=new BrowserWindow({show:process.env.WICK_HEADLESS!=='1',width:960,height:680,minWidth:720,minHeight:500,title:'Wick',titleBarStyle:'hiddenInset',backgroundColor:'#f5f5f7',webPreferences:{preload:path.join(__dirname,'preload.cjs'),nodeIntegration:false,contextIsolation:true,sandbox:true}});
   window.webContents.setWindowOpenHandler(()=>({action:'deny'}));
   window.webContents.on('will-navigate',event=>event.preventDefault());
   window.loadFile(path.join(__dirname,'index.html'));
@@ -39,7 +39,7 @@ else {
     ipcMain.handle('autostart',async(_event,name,value,token)=>{try{await manager.setAutostart(name,value,token);if(!process.env.WICK_HOME)await installLogin(manager);return {};}catch(e){return {error:e.message};}});
     ipcMain.handle('logs',async(_event,name)=>{try{return {text:await manager.logs(name)};}catch(e){return {error:e.message};}});
     ipcMain.handle('open',async(_event,name)=>{try{await shell.openExternal(await manager.serviceUrl(name));return {};}catch(e){return {error:e.message};}});
-    ipcMain.handle('action',async(_event,action,name)=>{try{await manager.action(action,name);return {ok:true};}catch(e){return {error:e.message};}});
+    ipcMain.handle('action',async(_event,action,name,options={})=>{try{await manager.action(action,name,options);return {ok:true};}catch(e){return {error:e.message,requiresConfirmation:e.requiresConfirmation,affected:e.affected};}});
     createWindow();
   });
   app.on('window-all-closed',()=>app.quit());

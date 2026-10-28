@@ -56,9 +56,73 @@ processes:
 
 - `disabled` 必须显式设置。`true` 关闭登录自启，仍允许手动启动；`false` 开启登录自启。修改它只影响下次后台启动，不立即启停服务。
 - `x-wick` 是展示信息，`title` 是名称，`url` 是访问地址。
-- 当前版本支持能独立运行的前台程序。不要使用 `is_disabled`、交互式/foreground 配置、定时任务、replicas、提权进程或关闭整个项目的设置。
+- 每个组成进程须作为非交互式前台程序运行。不要使用 `is_disabled`、交互式/foreground 配置、定时任务、replicas、提权进程或关闭整个项目的设置。
 - 未显式配置时，Wick 提供 `on_failure` 恢复策略：最多重试 3 次，间隔 2 秒；每个服务有独立日志，按 1 MiB 轮转并保留 2 份备份，内存日志缓冲为 500 行。
 - 可选的 `availability`、`log_location`、`log_configuration`、`shutdown` 和健康检查字段沿用 Process Compose 语法。重试次数和日志大小应有明确上限。
+
+### 多进程服务
+
+一个服务包含多个组成进程时，用顶层 `x-wick.services` 声明归属，原有 `processes` 继续保存启动信息。未归组的进程仍作为原来的单进程服务展示，不需迁移。
+
+```yaml
+version: "0.5"
+x-wick:
+  services:
+    neko:
+      title: Neko Master
+      url: http://127.0.0.1:13000
+      disabled: true
+      processes: [neko-collector, neko-page]
+processes:
+  neko-collector:
+    command: 'exec "/absolute/path/to/collector"'
+    working_dir: /absolute/path/to/neko
+    readiness_probe:
+      http_get:
+        host: 127.0.0.1
+        port: 13001
+        path: /health
+      initial_delay_seconds: 1
+      period_seconds: 1
+      timeout_seconds: 1
+      failure_threshold: 20
+    x-wick:
+      title: Collector
+      ready_timeout_seconds: 30
+  neko-page:
+    command: 'exec "/absolute/path/to/page"'
+    working_dir: /absolute/path/to/neko
+    depends_on:
+      neko-collector:
+        condition: process_healthy
+```
+
+这是格式示例，不代表 Neko Master 存在 `/health`。登记时查明真实就绪接口；可使用 Process Compose 的 HTTP 或 exec readiness probe，检查实际业务可用性。不要用“PID 存在”替代就绪。探活失败可能触发 Process Compose 的进程恢复，应为实际启动时长设置合理阈值。
+
+- 服务标识与进程标识不能冲突，一个进程只属于一个服务。组成进程不设置 `disabled`，服务级开关是唯一自启策略。
+- 依赖必须在同一服务内，使用 `process_healthy`，被依赖进程必须提供 `readiness_probe`；未知依赖与环会被拒绝。
+- 整体启动等待依赖就绪，失败跳过下游但继续其他独立分支，保留已经运行的进程；再次启动只补齐缺失进程。等待单个进程就绪默认 30 秒，可用进程 `x-wick.ready_timeout_seconds` 设置为 1–300 秒。超时不是自动停止或回滚。
+- 整体停止按依赖逆序逐个等待退出，失败继续尝试其他进程并报告错误；整体重启先停止，停止失败则不执行启动。
+- 运行中故障按各进程恢复策略处理，不自动连带停止其他进程。控制台展示整体状态与组成进程的就绪状态、退出详情和各自日志；历史失败不会因停止其他进程而清除。
+- 自启开启表示下次后台启动按依赖尝试启动全部组成进程，不保证全部成功；关闭整个服务自启不改变当前任何进程的运行状态。
+
+#### 单独操作组成进程
+
+CLI 在服务标识后增加进程标识；控制台详情提供相同操作：
+
+```bash
+npm run --silent service -- start neko neko-page
+npm run --silent service -- stop neko neko-page
+npm run --silent service -- restart neko neko-collector
+```
+
+单独启动会自动满足依赖，但不启动无关组成进程。停止只停目标，不连带停止依赖或依赖方。单独重启只重启目标：依赖未就绪时拒绝操作，使用 Start 才会补齐依赖。
+
+停止或重启被其他运行中进程依赖的目标时，控制台提示影响并要求确认；CLI 默认拒绝并列出受影响进程。向用户确认后，才加 `--confirm-impact` 重试。明确授权的操作无需重复确认，但不能用该参数绕过未说明的影响。操作不会改变自启设置。
+
+#### 接管多个旧登记
+
+将同一个服务的全部旧进程纳入同一次盘点和切换，记录依赖与就绪条件。旧自启不一致时向用户展示每项旧设置，确认一个服务级最终策略。切换先按依赖逆序停用旧登记并等待全部旧写入者退出，再按依赖顺序启动 Wick 服务。部分启动失败也不自动重新启用旧登记；保留已运行组成进程、日志和数据，由用户决定修复或授权回退。
 
 ### 校验与应用
 
@@ -79,11 +143,14 @@ cd "$PROJECT" && npm run validate && npm run apply
 GUI 与 CLI 使用同一个私有 Unix socket。以下命令中的 `memos` 替换为目标服务标识：
 
 ```bash
-"$PC" -U -u "$SOCKET" process list -o json
-"$PC" -U -u "$SOCKET" process start memos
+cd "$PROJECT"
+npm run --silent service -- list
+npm run --silent service -- start memos
 ```
 
-后台未运行时，先打开一次 Wick。应用配置不会启动未连接的管理器。启动后重新查询结构化状态，用 `curl` 检查实际 URL，并读取近期日志。Running 只表示进程状态，不保证 HTTP 已就绪。
+后台未运行时，先打开一次 Wick。应用配置不会启动未连接的管理器。集成 CLI 返回结构化状态，失败返回非零退出码。不要仅凭 stderr 判断失败；Process Compose 的 config-home debug 信息可能早于日志参数初始化出现。Wick 为子进程显式指定自己的配置目录，避免该无关诊断，不提高服务日志级别。直接调用 PC 时可设置 `PROC_COMP_CONFIG="$HOME_DIR"`。
+
+启动后重新查询结构化状态，用 `curl` 检查实际 URL，并读取近期日志。Running 只表示进程状态，不保证 HTTP 已就绪。
 
 完成条件：目标服务由 Wick 后台管理，实际入口可访问，程序与数据不依赖临时目录，其他服务未被重启。向用户说明打开方式和自启设置。
 
@@ -91,22 +158,23 @@ GUI 与 CLI 使用同一个私有 Unix socket。以下命令中的 `memos` 替�
 
 接管会停止旧实例并按登记命令重新启动，需要用户授权该服务的接管。
 
-1. 用监听端口定位 PID，确认所有者、完整启动参数和数据目录。保留原版本和监听范围；准备固定路径的新配置，关闭自启，校验并应用，暂不启动新实例。
-2. 正常停止已确认的旧实例，按下文的停止要求等待退出。需要搬移数据时，等所有写入者退出后再一致复制并检查，保留旧目录，不覆盖已有数据；空实例跳过数据搬移。
-3. 前面的步骤成功后才启动登记后的服务，检查状态、唯一监听实例、实际访问结果和日志。停止、复制或检查失败时，保留数据并停止后续切换；回退前先停止新实例，有新写入时保留并区分两份数据。
-4. 用户要求登录自启时，按下文“登录自启”将目标服务设为开启，完成校验、应用和确认。用户未要求时保持关闭。
+1. **盘点与选择**：用监听端口定位所有目标 PID，确认所有者、完整启动参数、工作目录、环境、监听范围、所有数据位置和依赖关系。查明旧管理器与准确登记标识，保存其配置及恢复命令。记录旧登录自启状态：launchd 要结合 plist 的 `RunAtLoad`、`KeepAlive` 及 `launchctl print-disabled gui/$(id -u)`，不能把“当前已加载/正在运行”等同登录自启。无法确认则明确标为未知。展示旧状态，让用户选择最终保留或关闭；用户已明确要求保留原行为时不重复询问。旧进程设置不一致时，说明差异并确认整个服务的最终选择。记录其他已运行服务 PID，作为后续比较基准。
+2. **准备**：保留原版本、端口、监听范围和数据路径；没有必要不迁移数据。先将 Wick 登记临时设为不自启，校验并应用，暂不启动新实例。这只是切换保护，不是最终自启选择。保存最终选择及原配置，确保中途失败仍可诊断。
+3. **切换**：正常停止并停用已确认的旧管理器登记，避免 `KeepAlive` 重新拉起；launchd 仅处理授权的准确 label，使用 bootout 卸载当前 job，并用 disable 停用以后登录的加载，保留 plist 和原禁用状态作为恢复依据。不默认删除旧登记。等待所有旧 PID 退出、目标端口释放，再交给 Wick。某一步失败就停止推进，不自动拉起旧实例。需要搬移数据时，先等所有写入者退出再一致复制并检查，保留旧目录，不覆盖已有数据。
+4. **验证与收尾**：启动 Wick 服务，检查全部组成进程、唯一监听实例、实际访问、采集或业务状态及日志；有数据库则检查完整性与已有数据可用性，不只检查端口。失败时保留现场与日志，不自动回切；若用户授权回退，先停止所有新实例并确认端口释放，有新写入时保留并区分数据，不能直接用旧副本覆盖。成功后按最终选择保存自启设置，校验、应用、重新读取确认；比较无关服务的 PID。
 
 SQLite 的有效数据可能仍在 `-wal` 中，运行中只复制 `.db` 会遗漏数据。使用数据库的一致备份能力，或在正常退出、检查点完成后复制整个数据目录。
 
-完成条件：旧实例已退出，目标端口只有一个已登记实例监听，实际入口可访问；有数据时完成必要的一致性检查。分别报告当前运行状态与下次后台启动时的自启设置。
+完成条件：旧实例已退出，目标端口只有已登记实例监听，实际入口和数据可用，未修改服务 PID 不变。分别报告：①当前运行状态（包括部分运行及失败原因）；②登录自启开启/关闭，下次后台启动生效，包括同会话后台重启；③旧管理器登记是否已停用、恢复信息保留位置。没有实际注销登录就不能声称已验证重新登录。
 
 ## 日常操作
 
 查询与启动使用上面的 CLI，停止与重启使用：
 
 ```bash
-"$PC" -U -u "$SOCKET" process stop memos
-"$PC" -U -u "$SOCKET" process restart memos
+cd "$PROJECT"
+npm run --silent service -- stop memos
+npm run --silent service -- restart memos
 ```
 
 无需打开控制台，也无需模拟 TUI 按键。
@@ -120,12 +188,12 @@ SQLite 的有效数据可能仍在 `-wal` 中，运行中只复制 `.db` 会遗�
 
 ### 登录自启
 
-`services.yaml` 中的 `disabled` 是持久设置：`false` 开启，`true` 关闭。下次后台启动时会按此设置生成 runtime 并决定启动哪些服务，包括下次登录和同会话内的后台重新启动。
+`services.yaml` 中的 `disabled` 是持久设置：`false` 开启，`true` 关闭。单进程服务设置在进程上，多进程服务设置在 `x-wick.services` 的服务上。下次后台启动时会按此设置生成 runtime 并决定启动哪些服务，包括下次登录和同会话内的后台重新启动。
 
 Apply 会保留已登记服务在旧 `runtime.yaml` 中的 `disabled`，避免修改自启设置影响当前运行状态。因此，Apply 成功后两个文件的值仍可能不同。`runtime.yaml` 用于当前后台运行，不能用它的旧值判断持久设置是否保存成功。控制台的 `Start at login` 开关也只修改源配置，不同步当前 runtime。
 
 1. 记录目标服务当前是否运行及 PID。
-2. 编辑 `services.yaml` 中目标服务的 `disabled`，执行上文的校验与应用命令。
+2. 编辑 `services.yaml` 中目标服务的 `disabled`（多进程服务只改服务级开关），执行上文的校验与应用命令。
 3. 重新读取源配置，确认目标值已保存；查询 socket 中的服务状态，确认当前启停状态未变，运行中的服务保持原 PID。
 4. 报告“当前运行/停止；登录自启开启/关闭，下次后台启动生效”。只把实际执行的后台启动检查或注销登录检查称为已验证。
 

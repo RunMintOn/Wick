@@ -6,6 +6,7 @@ const { promisify } = require('node:util');
 const YAML = require('yaml');
 const http = require('node:http');
 const {createHash,randomUUID}=require('node:crypto');
+const {serviceModel,processStatus,aggregate,validateDisplay}=require('./service-model.cjs');
 const tokenOf=text=>createHash('sha256').update(text).digest('hex');
 const exec = promisify(execFile);
 const defaultHome = () => process.env.WICK_HOME || path.join(os.homedir(), 'Library', 'Application Support', 'Wick');
@@ -20,10 +21,10 @@ class ServiceManager {
   }
   async cli(args) {
     try {
-      const {stdout} = await exec(this.binary, ['-U', '-u', this.socket, '-L', '/dev/null', ...args], {timeout:15000, maxBuffer:2*1024*1024, cwd:this.home});
+      const {stdout} = await exec(this.binary, ['-U', '-u', this.socket, '-L', '/dev/null', ...args], {timeout:15000, maxBuffer:2*1024*1024, cwd:this.home,env:{...process.env,PROC_COMP_CONFIG:this.home}});
       return stdout;
     } catch (error) {
-      throw new Error(error.stderr?.trim() || error.message);
+      throw new Error(`Process Compose ${args.join(' ')} failed (${error.code ?? error.signal ?? 'unknown'}):\n${error.stderr?.trim() || error.message}`);
     }
   }
   async readConfig() {
@@ -67,10 +68,9 @@ class ServiceManager {
     const {data}=await this.readConfig();
     let previous={processes:{}};
     if(preserve){try{previous=YAML.parse(await fs.readFile(this.runtime,'utf8'));}catch(e){if(e.code!=='ENOENT')throw e;}}
+    const {services,owners}=serviceModel(data);
     const processes={};
     for(const [name,source] of Object.entries(data.processes)) {
-      if(!/^[a-zA-Z0-9][a-zA-Z0-9_.-]*$/.test(name))throw new Error(`Invalid service identifier: ${name}`);
-      if(!source||typeof source!=='object'||Array.isArray(source))throw new Error(`Invalid service definition: ${name}`);
       if(source.disabled!==undefined&&typeof source.disabled!=='boolean')throw new Error(`${name}: disabled must be true or false.`);
       if(source.is_disabled!==undefined)throw new Error(`${name}: use disabled, not is_disabled, for login autostart.`);
       if(source.working_dir&&!path.isAbsolute(source.working_dir))throw new Error(`${name}: working_dir must be an absolute path.`);
@@ -79,12 +79,13 @@ class ServiceManager {
       if(source.is_foreground||source.is_daemon||source.is_interactive||source.is_tty||source.is_elevated||source.schedule||(source.replicas!==undefined&&source.replicas!==1))throw new Error(`${name}: Wick supports one non-interactive foreground service per registration.`);
       const meta=source['x-wick'];
       if(meta){
-        if(typeof meta!=='object'||Array.isArray(meta)||(meta.title!==undefined&&typeof meta.title!=='string'))throw new Error(`${name}: invalid display metadata.`);
-        if(meta.url){const url=new URL(meta.url);if(!['http:','https:'].includes(url.protocol))throw new Error(`${name}: address must use HTTP or HTTPS.`);}
+        validateDisplay(meta,name);
+        if(meta.ready_timeout_seconds!==undefined&&(!Number.isInteger(meta.ready_timeout_seconds)||meta.ready_timeout_seconds<1||meta.ready_timeout_seconds>300))throw new Error(`${name}: ready_timeout_seconds must be an integer from 1 to 300.`);
       }
       const config={...source};delete config['x-wick'];
       // Startup policy must not restart a running service when configuration is applied.
-      config.disabled=previous.processes?.[name]?.disabled ?? source.disabled ?? false;
+      const service=services.find(s=>s.name===owners.get(name));
+      config.disabled=previous.processes?.[name]?.disabled ?? (service.grouped?service.disabled:source.disabled??false);
       if(previous.processes?.[name]?.['x-wick-recovery'])config['x-wick-recovery']=previous.processes[name]['x-wick-recovery'];
       config.availability={restart:'on_failure',backoff_seconds:2,max_restarts:3,...config.availability};
       if(config.availability.max_restarts<1||!Number.isInteger(config.availability.max_restarts)||!Number.isInteger(config.availability.backoff_seconds)||config.availability.backoff_seconds<1||!['on_failure','no'].includes(config.availability.restart)||config.availability.exit_on_end||config.availability.exit_on_skipped)throw new Error(`${name}: use a finite on_failure policy (or no), without project shutdown.`);
@@ -131,21 +132,119 @@ class ServiceManager {
     }catch(e){return {home:this.home,background:'unavailable',services:[],error:`Background unavailable.\n${e.message}`};}
     try{
       const {data,text}=await this.readConfig();
-      return {home:this.home,background:'connected',token:tokenOf(text),services:Object.entries(data.processes).map(([name,config])=>({
+      const processes=Object.entries(data.processes).map(([name,config])=>({
         name,title:config['x-wick']?.title||name,url:config['x-wick']?.url||'',
-        autostart:config.disabled!==true,retryLimit:config.availability?.max_restarts??3,status:'Not applied',...states.find(s=>s.name===name)
-      }))};
+        autostart:config.disabled!==true,retryLimit:config.availability?.max_restarts??3,
+        dependencies:Object.keys(config.depends_on??{}),hasProbe:!!config.readiness_probe,
+        status:'Not applied',...states.find(s=>s.name===name)
+      }));
+      return {home:this.home,background:'connected',token:tokenOf(text),services:serviceModel(data).services.map(service=>{
+        if(!service.grouped)return processes.find(p=>p.name===service.name);
+        const components=service.processes.map(name=>processes.find(p=>p.name===name));
+        for(const component of components){
+          component.displayStatus=processStatus(component);
+          component.blockedBy=component.is_running?[]:component.dependencies.filter(name=>processStatus(processes.find(p=>p.name===name))!=='Running');
+        }
+        const status=aggregate(components);
+        return {name:service.name,title:service.title||service.name,url:service.url||'',autostart:!service.disabled,
+          components,status,is_running:components.some(p=>p.is_running)};
+      })};
     }catch(e){return {home:this.home,background:'connected',services:[],error:`Configuration unavailable.\n${e.message}`};}
   }
-  async action(action,name) {return this.withLock(()=>this.actionUnlocked(action,name));}
-  async actionUnlocked(action,name) {
+  async action(action,name,options={}) {return this.withLock(()=>this.actionUnlocked(action,name,options));}
+  async actionUnlocked(action,name,options={}) {
     if(!['start','stop','restart'].includes(action))throw new Error('Unsupported action.');
     const {data}=await this.readConfig();
-    if(!Object.hasOwn(data.processes,name))throw new Error('Service is not registered.');
-    if(action==='start'||action==='restart'){
+    const service=serviceModel(data).services.find(s=>s.name===name);
+    if(!service)throw new Error('Service is not registered.');
+    if(options.component){
+      if(!service.grouped||!service.processes.includes(options.component))throw new Error('Process does not belong to this service.');
+      return this.componentAction(action,service,options,data);
+    }
+    if(service.grouped)return this.groupAction(action,service,data);
+    return this.processAction(action,name,data);
+  }
+  async componentAction(action,service,options,data) {
+    const name=options.component;
+    const closure=new Set();
+    const collect=target=>{
+      if(closure.has(target))return;
+      closure.add(target);
+      Object.keys(data.processes[target].depends_on??{}).forEach(collect);
+    };
+    if(action==='start'){
+      collect(name);
+      return this.groupAction('start',{...service,order:service.order.filter(member=>closure.has(member))},data);
+    }
+    const states=(await this.request('/processes')).data;
+    const affected=service.processes.filter(member=>{
+      if(member===name)return false;
+      closure.clear();collect(member);
+      const state=states.find(state=>state.name===member);
+      return closure.has(name)&&(state?.is_running||['Restarting','Launching','Pending'].includes(state?.status));
+    });
+    if(affected.length&&options.confirmImpact!==true){
+      const error=new Error(`${action} ${name}: running dependents (${affected.join(', ')}) may be interrupted. They will not be stopped or restarted. Confirm the impact before proceeding.`);
+      throw Object.assign(error,{requiresConfirmation:true,affected});
+    }
+    if(action==='restart'){
+      for(const dependency of Object.keys(data.processes[name].depends_on??{})){
+        const state=states.find(state=>state.name===dependency);
+        if(!state?.is_running||state.is_ready!=='Ready')throw new Error(`${name}: dependency ${dependency} is not ready. Use Start to satisfy dependencies; Restart changes only its target.`);
+      }
+      await this.processAction('stop',name,data);
+      await this.processAction('start',name,data);
+      await this.ready(name,data.processes[name]);
+    }else await this.processAction('stop',name,data);
+  }
+  async waitProcess(name,predicate,timeout=15000) {
+    const until=Date.now()+timeout;
+    do{
       const state=await this.request(`/process/${encodeURIComponent(name)}`);
+      if(predicate(state))return state;
+      await new Promise(resolve=>setTimeout(resolve,100));
+    }while(Date.now()<until);
+    throw new Error(`${name}: timed out waiting for the process. Check its status and logs.`);
+  }
+  async ready(name,config) {
+    return this.waitProcess(name,state=>{
+      if(['Error','Completed'].includes(state.status))throw new Error(`${name}: exited before becoming ready. Check logs.`);
+      return state.is_running&&state.status!=='Restarting'&&(!config.readiness_probe||state.is_ready==='Ready');
+    },(config['x-wick']?.ready_timeout_seconds??30)*1000);
+  }
+  async groupAction(action,service,data) {
+    const errors=[];
+    if(action==='stop'||action==='restart'){
+      for(const name of [...service.order].reverse()){
+        try{await this.processAction('stop',name,data);}catch(e){errors.push(`${name}: ${e.message}`);}
+      }
+      // A failed stop must not be followed by a new instance.
+      if(action==='stop'||errors.length){
+        if(errors.length)throw new Error(errors.join('\n'));
+        return;
+      }
+    }
+    const failed=new Set();
+    for(const name of service.order){
+      const dependencies=Object.keys(data.processes[name].depends_on??{});
+      if(dependencies.some(dependency=>failed.has(dependency))){
+        failed.add(name);errors.push(`${name}: not started because a dependency failed.`);continue;
+      }
+      try{
+        await this.processAction('start',name,data);
+        await this.ready(name,data.processes[name]);
+      }catch(e){failed.add(name);errors.push(`${name}: ${e.message}`);}
+    }
+    if(errors.length)throw new Error(errors.join('\n'));
+  }
+  async processAction(action,name,data) {
+    const before=await this.request(`/process/${encodeURIComponent(name)}`);
+    const active=before.is_running||['Restarting','Launching','Pending','Terminating'].includes(before.status);
+    if(action==='start'&&active)return;
+    if(action==='stop'&&!active)return;
+    if(action==='start'||action==='restart'){
       const limit=data.processes[name].availability?.max_restarts??3;
-      if(state.restarts>=limit){
+      if(before.restarts>=limit){
         // v1.122 retains the retry counter on ordinary start/restart. A derived
         // revision makes server-side reload re-register only this service. Using
         // its loader avoids JSON number retyping that would affect later reloads.
@@ -156,18 +255,24 @@ class ServiceManager {
         const result=await this.request('/project/configuration','POST');
         if(Object.values(result).includes('error'))throw new Error('Service recovery failed. Check logs.');
         if(!(await this.request(`/process/${encodeURIComponent(name)}`)).is_running)await this.cli(['process','start',name]);
-        return;
+        return this.waitProcess(name,state=>state.is_running);
       }
     }
     await this.cli(['process',action,name]);
+    await this.waitProcess(name,state=>{
+      if(action==='stop')return !state.is_running&&!['Restarting','Launching','Pending','Terminating'].includes(state.status);
+      if(state.is_running||['Restarting','Error','Completed'].includes(state.status))return true;
+      return false;
+    });
   }
   async setAutostart(name,value,token) {return this.withLock(()=>this.setAutostartUnlocked(name,value,token));}
   async setAutostartUnlocked(name,value,token) {
     if(typeof value!=='boolean')throw new Error('Autostart must be true or false.');
     const {text,doc,data}=await this.readConfig();
     if(tokenOf(text)!==token)throw new Error('Configuration changed. Refresh and try again.');
-    if(!Object.hasOwn(data.processes,name))throw new Error('Service is not registered.');
-    doc.setIn(['processes',name,'disabled'],!value);
+    const service=serviceModel(data).services.find(s=>s.name===name);
+    if(!service)throw new Error('Service is not registered.');
+    doc.setIn(service.grouped?['x-wick','services',name,'disabled']:['processes',name,'disabled'],!value);
     const pending=this.config+'.pending';
     await fs.writeFile(pending,String(doc),{mode:0o600});
     if(await fs.readFile(this.config,'utf8')!==text)throw new Error('Configuration changed. Refresh and try again.');
@@ -195,7 +300,7 @@ class ServiceManager {
   }
   async serviceUrl(name) {
     const {data}=await this.readConfig();
-    const value=data.processes[name]?.['x-wick']?.url;
+    const value=serviceModel(data).services.find(s=>s.name===name)?.url;
     const url=new URL(value);
     if(!['http:','https:'].includes(url.protocol))throw new Error('Service address must use HTTP or HTTPS.');
     return url.href;

@@ -1,0 +1,36 @@
+const {test}=require('node:test');
+const assert=require('node:assert/strict');
+const fs=require('node:fs/promises');
+const path=require('node:path');
+const YAML=require('yaml');
+const {fixture,web,reachable,cleanup,exec}=require('./helpers.cjs');
+test('component start satisfies dependencies, stop confirms impact, restart touches only its target',async t=>{
+ const {home,manager}=await fixture();t.after(()=>cleanup(manager));
+ const collector={...web(home,'collector'),readiness_probe:{exec:{command:'/usr/bin/true'}}};delete collector.disabled;
+ const page={...web(home,'page'),depends_on:{collector:{condition:'process_healthy'}}};delete page.disabled;
+ const worker=web(home,'worker');delete worker.disabled;
+ await fs.writeFile(manager.config,YAML.stringify({'x-wick':{services:{neko:{disabled:true,processes:['collector','page','worker']}}},processes:{collector,page,worker,other:web(home,'other')}}));
+ await manager.ensure();await manager.action('start','other');await reachable(home,'other');
+ const otherPid=(await manager.snapshot()).services[1].pid;
+ await manager.action('start','neko',{component:'page'});await reachable(home,'page');
+ let components=(await manager.snapshot()).services[0].components;
+ assert.equal(components[0].is_running,true);assert.equal(components[2].is_running,false);
+ const pagePid=components[1].pid,collectorPid=components[0].pid;
+ await assert.rejects(manager.action('stop','neko',{component:'collector'}),error=>{
+  assert.equal(error.requiresConfirmation,true);assert.deepEqual(error.affected,['page']);return true;
+ });
+ assert.equal((await manager.snapshot()).services[0].components[0].pid,collectorPid);
+ await manager.action('restart','neko',{component:'collector',confirmImpact:true});
+ components=(await manager.snapshot()).services[0].components;
+ assert.notEqual(components[0].pid,collectorPid);assert.equal(components[1].pid,pagePid);
+ const options={env:{...process.env,WICK_HOME:home}};
+ await assert.rejects(exec(process.execPath,[path.resolve(__dirname,'../scripts/service.cjs'),'stop','neko','collector'],options),/dependents/);
+ await exec(process.execPath,[path.resolve(__dirname,'../scripts/service.cjs'),'stop','neko','collector','--confirm-impact'],options);
+ components=(await manager.snapshot()).services[0].components;
+ assert.equal(components[0].is_running,false);assert.equal(components[1].pid,pagePid);
+ await assert.rejects(manager.action('restart','neko',{component:'page'}),/dependency/);
+ await manager.action('start','neko',{component:'collector'});await reachable(home,'collector');
+ await manager.action('stop','neko',{component:'page'});
+ assert.equal((await manager.snapshot()).services[0].components[0].is_running,true);
+ assert.equal((await manager.snapshot()).services[1].pid,otherPid);
+});

@@ -20,6 +20,7 @@ First normal launch creates the service configuration and a user-level login bac
 
 - Select a service to see status, PID, CPU, main-process RSS, address and exit details.
 - Use **Start**, **Stop**, **Restart** or **Show logs**. **Open in Browser ↗** is next to the service Address.
+- A service can contain multiple processes. Its detail shows each process, dependency, readiness and logs. Start waits for healthy dependencies; partial failures keep already-running processes and can be retried. Stop runs in reverse dependency order. One login switch controls the whole service.
 - The top indicator reports the background connection: Connected, Connecting or Unavailable. Configuration errors do not mean the background is disconnected. Use **Reconnect** when unavailable.
 - **Start at login** affects the next background startup, not the current service state.
 - Closing the window quits the console. Services continue running.
@@ -30,6 +31,8 @@ Ask your Agent to read the [Wick Skill](skills/wick/SKILL.md) and register an in
 ## Agent Skill
 
 The Chinese [Wick Skill](skills/wick/SKILL.md) covers service registration, configuration and commands, existing-process takeover and data handling, daily operations, login autostart, recovery and troubleshooting.
+
+For Agent operations, use `npm run --silent service -- list` or `start|stop|restart <service> [process]`. The CLI and console share the same management interface; CLI queries return JSON. Component stop/restart requires impact confirmation when dependents are active (`--confirm-impact` after confirmation). Stderr alone does not mean failure. Existing-process takeover records the old login policy and asks whether to retain it, disables the old manager registration without deleting its recovery configuration, and verifies data and unrelated service PIDs.
 
 ```bash
 npm run skill:install
@@ -69,6 +72,8 @@ The application icon source is the transparent 1024×1024 PNG in `assets/icon.pn
 The build produces a local unsigned Apple Silicon app. It is not a signed public release. `npm run build` replaces its own generated output only.
 
 Set `WICK_HOME` to an absolute temporary directory for isolated testing. This also prevents the GUI from installing the normal login job. Integration tests use real Process Compose; login tests use distinct launchd labels and remove those jobs afterward. Run tests sequentially.
+
+Use `WICK_HEADLESS=1 npm run test:e2e` to keep Electron test windows hidden.
 
 ## Background and troubleshooting
 
