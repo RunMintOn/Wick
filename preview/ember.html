@@ -1,0 +1,239 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Wick · Ember</title>
+<style>
+*{box-sizing:border-box}
+:root{
+  --bg:#0a0f16;--side:#0d1420;--raise:#121c29;--well:#070c12;
+  --line:#1e2b3a;--line-2:#172231;
+  --text:#e9f0f7;--text-2:#9aa9ba;--text-3:#74879b;
+  --amber:#f4a75a;--amber-soft:rgba(244,167,90,.12);
+  --green:#57cc8d;--red:#ec7563;
+  --mono:"SF Mono",ui-monospace,Menlo,monospace;
+}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--text);font:13px/1.5 -apple-system,BlinkMacSystemFont,"SF Pro Text",sans-serif;-webkit-font-smoothing:antialiased}
+button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer}
+.app{display:grid;grid-template-columns:238px 1fr;height:100vh;overflow:hidden}
+aside{background:var(--side);border-right:1px solid var(--line);display:flex;flex-direction:column;min-height:0;position:relative}
+.traffic{display:flex;gap:8px;padding:20px 20px 0;height:54px;flex-shrink:0}
+.traffic i{width:12px;height:12px;border-radius:50%}
+.traffic .r{background:#e8685d}.traffic .y{background:#e0b25a}.traffic .g{background:#5fb87a}
+.brand{display:flex;align-items:baseline;gap:8px;padding:0 20px;flex-shrink:0}
+.brand b{font-size:13px;letter-spacing:.03em;font-weight:600}
+.brand span{font:10px/1 var(--mono);color:var(--text-3);letter-spacing:.06em}
+.meter{display:flex;gap:3px;padding:14px 20px 0;flex-shrink:0}
+.meter i{flex:1;height:3px;border-radius:2px;background:#22303f}
+.meter i[data-s=running]{background:var(--green)}
+.meter i[data-s=partial]{background:linear-gradient(90deg,var(--green) 50%,#22303f 50%)}
+.meter i[data-s=failed]{background:var(--red)}
+.summary{padding:9px 20px 12px;font:10.5px/1 var(--mono);color:var(--text-3);letter-spacing:.02em;flex-shrink:0}
+nav{flex:1;overflow:auto;padding:2px 10px 10px;min-height:0;scrollbar-width:thin}
+nav::-webkit-scrollbar{width:8px}nav::-webkit-scrollbar-thumb{background:#22303f;border-radius:8px}
+.svc{width:100%;display:flex;align-items:center;gap:9px;height:34px;padding:0 10px;border-radius:7px;text-align:left;color:var(--text-2)}
+.svc:hover{background:var(--raise);color:var(--text)}
+.svc[aria-current=true]{background:#151f2c;color:var(--text);box-shadow:inset 0 0 0 1px rgba(244,167,90,.22)}
+.svc .n{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:500;letter-spacing:-.005em}
+.svc .t{font:10px/1 var(--mono);color:var(--text-3);letter-spacing:.02em}
+.svc[aria-current=true] .t{color:var(--amber)}
+.dot{width:6px;height:6px;border-radius:50%;background:#3d4c5c;flex-shrink:0}
+.dot.running{background:var(--green);box-shadow:0 0 0 3px rgba(87,204,141,.13)}
+.dot.partial{background:var(--amber);box-shadow:0 0 0 3px rgba(244,167,90,.13)}
+.dot.failed{background:var(--red);box-shadow:0 0 0 3px rgba(236,117,99,.13)}
+.dot.starting{background:var(--amber);animation:pulse 1.2s ease-in-out infinite}
+@keyframes pulse{50%{opacity:.35}}
+.side-foot{display:flex;align-items:center;gap:7px;padding:10px 20px 14px;border-top:1px solid var(--line-2);font:10.5px/1 var(--mono);color:var(--text-3);flex-shrink:0}
+.side-foot b{color:var(--green);font-weight:400}
+main{display:flex;flex-direction:column;min-width:0;min-height:0}
+.toolbar{height:50px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;padding:0 26px;flex-shrink:0}
+.crumb{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text-3)}
+.crumb b{color:var(--text-2);font-weight:500}
+.scroll{overflow:auto;padding:24px 26px 34px;min-height:0}
+.head{display:flex;align-items:flex-start;justify-content:space-between;gap:24px}
+h1{margin:0;font-size:30px;line-height:1.1;letter-spacing:-.032em;font-weight:600}
+#detail{max-width:900px}
+.state{display:inline-flex;align-items:center;gap:7px;margin-top:9px;font-size:12px;color:var(--text-2)}
+.state .dot{width:7px;height:7px}
+.state[data-s=partial]{color:var(--amber)}
+.state[data-s=failed]{color:var(--red)}
+.actions{display:flex;gap:8px;flex-shrink:0;padding-top:4px}
+.btn{height:30px;padding:0 13px;border-radius:7px;font-size:12px;font-weight:500;border:1px solid var(--line);color:var(--text-2);background:#101a25;transition:background .12s,color .12s,border-color .12s}
+.btn:hover:not(:disabled){background:#16222f;color:var(--text);border-color:#2b3c4f}
+.btn:active:not(:disabled){transform:translateY(1px)}
+.btn:disabled{opacity:.38;cursor:default}
+.btn.primary{background:var(--amber);border-color:var(--amber);color:#1b1206;font-weight:600}
+.btn.primary:hover{background:#ffb96f;border-color:#ffb96f;color:#1b1206}
+.tiles{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;border-top:1px solid var(--line);border-bottom:1px solid var(--line);margin:24px 0 0}
+.tile{padding:13px 0 14px 18px;border-left:1px solid var(--line-2)}
+.tile:first-child{border-left:0;padding-left:0}
+.tile span{display:block;font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--text-3);font-weight:600}
+.tile b{display:block;margin-top:6px;font:15px/1 var(--mono);font-weight:400;font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+.addr{display:flex;align-items:center;gap:12px;padding:14px 0;border-bottom:1px solid var(--line)}
+.addr .u{flex:1;min-width:0;font:12px/1.4 var(--mono);color:var(--text-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.addr .u em{font-style:normal;color:var(--text-3)}
+.open{display:inline-flex;align-items:center;gap:6px;height:26px;padding:0 10px;border-radius:6px;background:#111a26;color:var(--text-2);font-size:11.5px;font-weight:500;border:1px solid var(--line)}
+.open:hover{background:#16222f;color:var(--amber);border-color:rgba(244,167,90,.28)}
+.open:active{transform:translateY(1px)}
+.sec-h{display:flex;align-items:center;justify-content:space-between;margin:26px 0 10px}
+.sec-h h2{margin:0;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--text-2);font-weight:600}
+.sec-h .count{font:10px/1 var(--mono);color:var(--text-3)}
+.proc-head,.proc{display:grid;grid-template-columns:minmax(0,1fr) 122px 78px 58px 70px 96px;gap:8px;align-items:center}
+.proc-head{padding:0 8px 8px;border-bottom:1px solid var(--line);font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--text-3);font-weight:600}
+.proc{padding:6px 8px;min-height:38px;border-bottom:1px solid var(--line-2);color:var(--text-2)}
+.proc:hover{background:#0f1925}
+.proc .nm{display:flex;align-items:center;gap:8px;min-width:0;color:var(--text);font-weight:500}
+.proc .nmt{display:flex;flex-direction:column;min-width:0;line-height:1.25}
+.proc .nmt span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.proc .nmt b{font:9.5px/1.3 var(--mono);font-weight:400;color:var(--red);opacity:.85;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.proc .st{display:flex;align-items:center;gap:7px;font-size:12px}
+.proc .num{font:11.5px/1 var(--mono);font-variant-numeric:tabular-nums;text-align:right;color:var(--text-2)}
+.proc-head .num{text-align:right}
+.proc .st[data-s=failed]{color:var(--red)}
+.proc .st[data-s=running]{color:var(--green)}
+.proc-acts{display:flex;justify-content:flex-end;gap:4px}
+.proc-acts button{font-size:11px;color:var(--text-3);padding:3px 6px;border-radius:5px;opacity:0}
+.proc:hover .proc-acts button,.proc-acts button:focus-visible,.proc .proc-acts .always{opacity:1}
+.proc-acts button:hover{background:#1b2836;color:var(--text)}
+.ghost{font-size:11.5px;color:var(--text-3);padding:2px 0;border-bottom:1px solid transparent;transition:color .12s,border-color .12s}
+.ghost:hover{color:var(--amber);border-bottom-color:rgba(244,167,90,.4)}
+.note{display:flex;gap:9px;margin-top:14px;padding:11px 13px;border:1px solid rgba(244,167,90,.2);background:var(--amber-soft);border-radius:8px;font-size:12px;line-height:1.5;color:#e8c79f}
+.note b{color:var(--amber);font-weight:600}
+.note .g{color:var(--amber);flex-shrink:0}
+h3{margin:0;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--text-2);font-weight:600}
+.auto{display:flex;align-items:center;justify-content:space-between;gap:20px;margin-top:26px;padding-top:18px;border-top:1px solid var(--line)}
+.auto .l{display:flex;align-items:center;gap:10px;font-size:12.5px}
+.auto .hint{color:var(--text-3);font-size:11.5px}
+.sw{width:34px;height:20px;border-radius:20px;background:#26364a;position:relative;transition:background .15s;flex-shrink:0}
+.sw::after{content:"";position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:#7d8d9e;transition:transform .15s,background .15s}
+.sw[aria-checked=true]{background:#4a3418}
+.sw[aria-checked=true]::after{transform:translateX(14px);background:var(--amber)}
+.sw:active::after{width:19px}
+.logs{margin-top:10px;border:1px solid var(--line);border-radius:8px;background:var(--well);overflow:hidden}
+.logs-h{display:flex;align-items:center;gap:8px;padding:9px 12px;border-bottom:1px solid var(--line-2);font:11px/1 var(--mono);color:var(--text-3)}
+.logs-h b{color:var(--text-2);font-weight:400}
+.logs-h button{margin-left:auto;color:var(--text-3);font:11px/1 var(--mono);opacity:1;padding:2px 4px}
+.logs pre{margin:0;padding:12px;font:11.5px/1.65 var(--mono);color:#b8c7d6;max-height:190px;overflow:auto;white-space:pre-wrap}
+.logs pre i{font-style:normal;color:var(--red)}
+.logs pre s{text-decoration:none;color:var(--text-3)}
+:focus-visible{outline:2px solid var(--amber);outline-offset:2px;border-radius:5px}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside>
+    <div class="traffic"><i class="r"></i><i class="y"></i><i class="g"></i></div>
+    <div class="brand"><b>Wick</b><span>local services</span></div>
+    <div class="meter" id="meter"></div>
+    <div class="summary" id="summary"></div>
+    <nav id="list" aria-label="Services"></nav>
+    <div class="side-foot"><span class="dot running" style="box-shadow:none"></span><span>background</span><b>connected</b></div>
+  </aside>
+  <main>
+    <div class="toolbar">
+      <div class="crumb"><span>Services</span><span>/</span><b id="crumb"></b></div>
+      <button class="btn" id="refresh">Refresh</button>
+    </div>
+    <div class="scroll"><div id="detail"></div></div>
+  </main>
+</div>
+<script>
+const LOGS={
+  "chat-web":["10:41:02  ready  listening on 127.0.0.1:3000","10:41:02  info   websocket gateway attached","10:46:18  info   3 clients connected"],
+  "chat-worker":["10:41:03  info   starting worker on 127.0.0.1:3001","10:41:03  error  bind EADDRINUSE 127.0.0.1:3001","10:41:05  info   retry 1/3 after 2s","10:41:07  error  bind EADDRINUSE 127.0.0.1:3001","10:41:09  info   retry 2/3 after 2s","10:41:11  error  bind EADDRINUSE 127.0.0.1:3001","10:41:13  info   retry 3/3 after 2s","10:41:15  error  bind EADDRINUSE 127.0.0.1:3001","10:41:15  fatal  retry budget used, exit 1"],
+  "chat-tunnel":["10:41:02  ready  https://unichat.tail5dceb8.ts.net","10:46:31  info   heartbeat ok"],
+  "neko":["10:41:02  info   listening on 127.0.0.1:7301","10:44:10  info   proxy: 12 upstreams loaded","10:46:02  info   heartbeat ok"],
+  "dsh-web":["10:34:02  info   last exit 0 after SIGTERM","10:34:02  info   service stopped by console"],
+  "dsh-scheduler":["10:34:02  info   last exit 0 after SIGTERM"],
+  "dsh-tunnel":["10:34:03  info   last exit 0 after SIGTERM"]
+};
+const SVC=[
+ {name:"Neko Master",status:"running",url:"http://127.0.0.1:7301",autostart:true,uptime:"3d 4h",retries:0,processes:[{id:"neko",title:"Neko Master",status:"running",pid:3120,cpu:1.4,rss:118,ready:"Ready"}]},
+ {name:"BookOrbit",status:"stopped",url:"http://127.0.0.1:5180",autostart:false,uptime:"",retries:0,exit:0,processes:[{id:"bookorbit",title:"BookOrbit",status:"stopped",exit:0,retries:0}]},
+ {name:"dsh",status:"stopped",url:"https://macbook-pro.tail5dceb8.ts.net",autostart:false,uptime:"",retries:0,processes:[
+   {id:"dsh-web",title:"dsh Web",status:"stopped",exit:0,retries:0},
+   {id:"dsh-scheduler",title:"dsh Scheduler",status:"stopped",exit:0,retries:0},
+   {id:"dsh-tunnel",title:"dsh Tunnel",status:"stopped",exit:0,retries:0}]},
+ {name:"UniChat",status:"partial",url:"https://unichat.tail5dceb8.ts.net",autostart:true,uptime:"",retries:3,processes:[
+   {id:"chat-web",title:"chat-web",status:"running",pid:4812,cpu:2.1,rss:84,ready:"Ready"},
+   {id:"chat-worker",title:"chat-worker",status:"failed",exit:1,retries:3,error:"EADDRINUSE 127.0.0.1:3001"},
+   {id:"chat-tunnel",title:"chat-tunnel",status:"running",pid:4839,cpu:0.3,rss:22,ready:"Ready"}]},
+ {name:"Memos",status:"stopped",url:"http://127.0.0.1:5230",autostart:true,uptime:"",retries:0,exit:0,processes:[{id:"memos",title:"Memos",status:"stopped",exit:0,retries:0}]},
+ {name:"CV Studio",status:"running",url:"http://127.0.0.1:7860",autostart:false,uptime:"12h 08m",retries:0,processes:[{id:"cv",title:"CV Studio",status:"running",pid:2214,cpu:6.8,rss:302,ready:"Ready"}]},
+ {name:"Quick Reading",status:"running",url:"http://127.0.0.1:4321",autostart:true,uptime:"3d 4h",retries:0,processes:[{id:"qr",title:"Quick Reading",status:"running",pid:9021,cpu:0.2,rss:46,ready:"Ready"}]},
+ {name:"Ziqian Blog",status:"running",url:"http://127.0.0.1:1313",autostart:true,uptime:"3d 4h",retries:0,processes:[{id:"blog",title:"Ziqian Blog",status:"running",pid:1888,cpu:0.4,rss:74,ready:"Ready"}]},
+ {name:"WeChat Download API",status:"stopped",url:"http://127.0.0.1:8021",autostart:false,uptime:"",retries:0,exit:1,processes:[{id:"wc",title:"WeChat Download API",status:"stopped",exit:1,retries:0}]},
+ {name:"PhraseVault Mobile",status:"running",url:"http://127.0.0.1:8787",autostart:false,uptime:"2d 11h",retries:0,processes:[{id:"pv",title:"PhraseVault Mobile",status:"running",pid:6440,cpu:0.9,rss:63,ready:"Ready"}]},
+ {name:"RSS Harbor",status:"running",url:"http://127.0.0.1:1200",autostart:true,uptime:"6h 21m",retries:0,processes:[{id:"rss",title:"RSS Harbor",status:"running",pid:5122,cpu:1.1,rss:88,ready:"Ready"}]}
+];
+const LABEL={running:"Running",partial:"Partially running",stopped:"Stopped",failed:"Failed",starting:"Starting"};
+const $=s=>document.querySelector(s);
+let selected="UniChat",logFor="";
+
+function tile(label,value){return `<div class="tile"><span>${label}</span><b>${value}</b></div>`}
+function procRow(p){
+  const num=v=>v===undefined||v===null?"–":v;
+  return `<div class="proc" data-p="${p.id}">
+    <div class="nm"><i class="dot ${p.status}"></i><div class="nmt"><span>${p.title}</span>${p.error?`<b>${p.error}</b>`:""}</div></div>
+    <div class="st" data-s="${p.status}">${LABEL[p.status]}</div>
+    <div class="num">${num(p.pid)}</div>
+    <div class="num">${p.cpu!==undefined?p.cpu.toFixed(1)+"%":"–"}</div>
+    <div class="num">${p.rss?p.rss+" M":"–"}</div>
+    <div class="proc-acts">
+      ${p.status==="running"?"<button data-a=\"stop\">stop</button><button data-a=\"restart\">restart</button>":"<button data-a=\"start\" class=\"${p.status===\"failed\"?\"always\":\"\"}\">start</button>"}
+      <button data-a="logs" class="${p.status==="failed"?"always":""}">logs</button>
+    </div>
+  </div>`;
+}
+function logsBlock(s){
+  const p=s.processes.find(p=>p.id===logFor);if(!p)return "";
+  const lines=(LOGS[p.id]||["10:41:02  info   no output yet"]).map(l=>l.replace(/\b(error|fatal)\b/g,"<i>$1</i>").replace(/^\d\d:\d\d:\d\d/,"<s>$&</s>"));
+  return `<div class="logs"><div class="logs-h"><b>${p.title}</b> tail -n 50<button data-a="close-logs">close</button></div><pre>${lines.join("\n")}</pre></div>`;
+}
+function renderDetail(){
+  const s=SVC.find(x=>x.name===selected);
+  const anyRunning=s.processes.some(p=>p.status==="running");
+  const grouped=s.processes.length>1;
+  const tiles=grouped
+    ? [tile("Processes",s.processes.length),tile("Running",s.processes.filter(p=>p.status==="running").length),tile("Failed",s.processes.filter(p=>p.status==="failed").length),tile("Restarts",s.retries)]
+    : (anyRunning
+      ? [tile("PID",s.processes[0].pid),tile("CPU",s.processes[0].cpu.toFixed(1)+"%"),tile("Memory",s.processes[0].rss+" MiB"),tile("Uptime",s.uptime)]
+      : [tile("Exit code",s.exit??"–"),tile("Restarts",s.retries),tile("Autostart",s.autostart?"On":"Off"),tile("Last seen","just now")]);
+  $("#crumb").textContent=s.name;
+  document.title=`Wick · ${s.name}`;
+  $("#detail").innerHTML=`
+    <div class="head">
+      <div><h1>${s.name}</h1><div class="state" data-s="${s.status}"><i class="dot ${s.status}"></i>${LABEL[s.status]}</div></div>
+      <div class="actions">
+        <button class="btn ${s.status!=="running"?"primary":""}" ${s.status==="running"?"disabled":""}>Start</button>
+        <button class="btn" ${anyRunning?"":"disabled"}>Stop</button>
+        <button class="btn" ${anyRunning?"":"disabled"}>Restart</button>
+      </div>
+    </div>
+    <div class="tiles">${tiles.join("")}</div>
+    <div class="addr"><span class="u">${s.url}</span><button class="open">Open in Browser ↗</button></div>
+    ${grouped?`<div class="sec-h"><h2>Processes</h2><span class="count">${s.processes.length}</span></div>
+      <div class="proc-head"><div>Process</div><div>State</div><div class="num">PID</div><div class="num">CPU</div><div class="num">RSS</div><div></div></div>
+      ${s.processes.map(procRow).join("")}`:""}
+    ${s.status==="partial"&&s.retries>=3?`<div class="note"><span class="g">!</span><div><b>Retry budget used (3/3).</b> chat-worker keeps exiting on <code>EADDRINUSE</code>. Free port 3001, then Start; the two running processes stay up.</div></div>`:""}
+    <div class="auto"><div><div class="l">Start at login</div><div class="hint">Applies at next login, does not change this session.</div></div><button class="sw" id="sw" role="switch" aria-checked="${s.autostart}" aria-label="Start at login"></button></div>
+    ${grouped?"":`<div class="sec-h"><h2>Recent logs</h2><button class="ghost" data-a="logs" data-p="${s.processes[0].id}">${logFor===s.processes[0].id?"Hide logs":"Show logs"}</button></div>`}
+    ${logsBlock(s)}`;
+  $("#sw").onclick=e=>{s.autostart=!s.autostart;e.currentTarget.setAttribute("aria-checked",s.autostart);renderList();renderDetail()};
+  $("#detail").querySelectorAll("[data-a=logs]").forEach(b=>b.onclick=()=>{logFor=logFor===b.dataset.p?"":b.dataset.p;renderDetail()});
+  $("#detail").querySelector("[data-a=close-logs]")?.addEventListener("click",()=>{logFor="";renderDetail()});
+}
+function renderList(){
+  $("#list").innerHTML=SVC.map(s=>`<button class="svc" data-n="${s.name}" aria-current="${s.name===selected}">
+    <i class="dot ${s.status}"></i><span class="n">${s.name}</span><span class="t">${s.status==="running"?"":s.status==="partial"?"1/3":""}</span></button>`).join("");
+  $("#list").querySelectorAll(".svc").forEach(b=>b.onclick=()=>{selected=b.dataset.n;logFor="";renderList();renderDetail()});
+  $("#meter").innerHTML=SVC.map(s=>`<i data-s="${s.status}"></i>`).join("");
+  const running=SVC.filter(s=>s.status==="running").length;
+  $("#summary").textContent=`${running} running · ${SVC.length} services`;
+}
+renderList();renderDetail();
+</script>
+</body>
+</html>

@@ -132,17 +132,20 @@ class ServiceManager {
     }catch(e){return {home:this.home,background:'unavailable',services:[],error:`Background unavailable.\n${e.message}`};}
     try{
       const {data,text}=await this.readConfig();
-      const processes=Object.entries(data.processes).map(([name,config])=>({
-        name,title:config['x-wick']?.title||name,url:config['x-wick']?.url||'',
-        autostart:config.disabled!==true,retryLimit:config.availability?.max_restarts??3,
-        dependencies:Object.keys(config.depends_on??{}),hasProbe:!!config.readiness_probe,
-        status:'Not applied',...states.find(s=>s.name===name)
-      }));
+      const processes=Object.entries(data.processes).map(([name,config])=>{
+        const process={
+          name,title:config['x-wick']?.title||name,url:config['x-wick']?.url||'',
+          autostart:config.disabled!==true,retryLimit:config.availability?.max_restarts??3,
+          dependencies:Object.keys(config.depends_on??{}),hasProbe:!!config.readiness_probe,
+          status:'Not applied',...states.find(s=>s.name===name)
+        };
+        process.displayStatus=processStatus(process);
+        return process;
+      });
       return {home:this.home,background:'connected',token:tokenOf(text),services:serviceModel(data).services.map(service=>{
         if(!service.grouped)return processes.find(p=>p.name===service.name);
         const components=service.processes.map(name=>processes.find(p=>p.name===name));
         for(const component of components){
-          component.displayStatus=processStatus(component);
           component.blockedBy=component.is_running?[]:component.dependencies.filter(name=>processStatus(processes.find(p=>p.name===name))!=='Running');
         }
         const status=aggregate(components);

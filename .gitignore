@@ -2,6 +2,7 @@ node_modules/
 dist/
 test-results/
 playwright-report/
+preview/shots/
 .DS_Store
 assets/icon.icns
 .scratch/**/evidence/

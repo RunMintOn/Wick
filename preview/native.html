@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Wick · Native</title>
+<style>
+*{box-sizing:border-box}
+:root{
+  color-scheme:light dark;
+  --bg:#f5f5f7;--side:#ececee;--card:#ffffff;--card-2:#fafafb;
+  --line:#e2e2e7;--line-2:#ededf0;
+  --text:#1d1d1f;--text-2:#6e6e76;--text-3:#75757e;
+  --accent:#0a7cff;--green:#3d8b62;--amber:#b58a42;--red:#b9564f;
+  --switch:#34c759;--mono:"SF Mono",ui-monospace,Menlo,monospace;
+}
+@media (prefers-color-scheme:dark){
+  :root{--bg:#1c1c1e;--side:#262629;--card:#2c2c2f;--card-2:#29292c;--line:#3a3a3e;--line-2:#343438;--text:#f2f2f5;--text-2:#a4a4ad;--text-3:#7c7c85;--accent:#3b93ff;--green:#5fc48d;--amber:#d3aa63;--red:#e0796f}
+}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--text);font:13px/1.45 -apple-system,BlinkMacSystemFont,"SF Pro Text",sans-serif;-webkit-font-smoothing:antialiased}
+button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer}
+.app{display:grid;grid-template-columns:218px 1fr;height:100vh;overflow:hidden}
+aside{background:var(--side);border-right:1px solid var(--line);display:flex;flex-direction:column;min-height:0}
+.traffic{display:flex;gap:8px;padding:19px 18px 0;height:52px;flex-shrink:0}
+.traffic i{width:12px;height:12px;border-radius:50%}
+.traffic .r{background:#ec6a5e}.traffic .y{background:#f4bf4f}.traffic .g{background:#61c454}
+.side-head{padding:2px 18px 8px;flex-shrink:0}
+.side-head b{font-size:13px;font-weight:600;letter-spacing:-.01em}
+.side-head div{margin-top:3px;font-size:11px;color:var(--text-3)}
+nav{flex:1;overflow:auto;min-height:0;padding:0 8px 8px;scrollbar-width:thin}
+.svc{width:100%;display:flex;align-items:center;gap:8px;height:32px;padding:0 8px;border-radius:6px;text-align:left;font-size:13px}
+.svc:hover{background:rgba(120,120,130,.12)}
+.svc[aria-current=true]{background:rgba(120,120,130,.22)}
+.svc .n{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.svc[data-s=stopped] .n{color:var(--text-2)}
+.svc .st{font-size:10.5px;color:var(--text-3);font-variant-numeric:tabular-nums}
+.svc[data-s=partial] .st{color:var(--amber)}
+.svc[data-s=failed] .st{color:var(--red)}
+.side-foot{padding:9px 16px 12px;border-top:1px solid var(--line);display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text-3);flex-shrink:0}
+.side-foot b{color:var(--green);font-weight:400}
+.dot{width:7px;height:7px;border-radius:50%;background:#a8a8b0;flex-shrink:0}
+.dot.running{background:var(--green)}.dot.partial{background:var(--amber)}.dot.failed{background:var(--red)}
+main{display:flex;flex-direction:column;min-width:0;min-height:0}
+.toolbar{height:52px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;padding:0 20px;flex-shrink:0;background:color-mix(in srgb,var(--bg) 82%,transparent);backdrop-filter:blur(20px)}
+.toolbar>span{font-size:13px;font-weight:600}
+.tools{display:flex;align-items:center;gap:12px}
+.bg-pill{display:inline-flex;align-items:center;gap:6px;height:24px;padding:0 10px;border-radius:99px;background:var(--card-2);border:1px solid var(--line);font-size:11px;color:var(--text-2)}
+.bg-pill b{color:var(--green);font-weight:500}
+.btn{height:26px;padding:0 11px;border-radius:6px;border:1px solid var(--line);background:var(--card);font-size:12px;color:var(--text);box-shadow:0 1px 1px rgba(0,0,0,.04);transition:background .1s}
+.btn:hover:not(:disabled){background:var(--card-2)}
+.btn:active:not(:disabled){transform:translateY(1px);box-shadow:none}
+.btn:disabled{color:var(--text-3);box-shadow:none;cursor:default}
+.btn.primary{background:var(--accent);border-color:transparent;color:#fff;font-weight:500}
+.btn.primary:hover{background:color-mix(in srgb,var(--accent) 88%,#000)}
+.scroll{overflow:auto;padding:22px 24px 30px;min-height:0}
+#detail{max-width:760px;width:100%;margin:0 auto}
+.head{display:flex;align-items:flex-start;justify-content:space-between;gap:24px;margin-bottom:18px}
+h1{margin:0;font-size:23px;line-height:1.2;letter-spacing:-.022em;font-weight:600}
+.sub{display:flex;align-items:center;gap:7px;margin-top:5px;font-size:12px;color:var(--text-2)}
+.sub[data-s=partial]{color:var(--amber)}
+.sub[data-s=failed]{color:var(--red)}
+.actions{display:flex;gap:7px;flex-shrink:0}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;margin-bottom:14px;overflow:hidden}
+.row{display:flex;align-items:center;justify-content:space-between;gap:20px;min-height:41px;padding:0 14px;border-bottom:1px solid var(--line-2)}
+.row:last-child{border-bottom:0}
+.row .k{font-size:12.5px;color:var(--text-2);flex-shrink:0}
+.row .v{font-size:12.5px;text-align:right;min-width:0;overflow-wrap:anywhere}
+.row .v.mono{font-family:var(--mono);font-size:12px;font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+.v-group{display:flex;align-items:center;gap:12px;justify-content:flex-end;min-width:0}
+.v-group .u{font-family:var(--mono);font-size:12px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.link{color:var(--accent);font-size:12.5px;white-space:nowrap}
+.link:hover{text-decoration:underline}
+.link:active{opacity:.7}
+.head-card{padding:12px 14px 0}
+.sub-h{display:flex;align-items:baseline;justify-content:space-between;padding:2px 2px 8px;font-size:11px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--text-3)}
+.sub-h span{font-weight:400;letter-spacing:0;text-transform:none;font-size:11.5px}
+.proc-head,.proc{display:grid;grid-template-columns:minmax(0,1fr) 152px 70px 60px 70px 88px;gap:10px;align-items:center;padding:0 14px;min-height:38px;border-bottom:1px solid var(--line-2)}
+.proc-head{font-size:10.5px;color:var(--text-3);min-height:28px;background:var(--card-2);border-bottom:1px solid var(--line)}
+.proc:last-child{border-bottom:0}
+.proc .nm{display:flex;align-items:center;gap:8px;min-width:0;font-size:12.5px}
+.proc .nm span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.proc .st{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--text-2);min-width:0}
+.proc .st .why{font-family:var(--mono);font-size:10.5px;color:var(--text-3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.proc .num{font-family:var(--mono);font-size:11.5px;text-align:right;color:var(--text-2);font-variant-numeric:tabular-nums}
+.proc-head .num{text-align:right}
+.proc .act{display:flex;justify-content:flex-end;gap:2px;opacity:0}
+.proc:hover .act,.proc:focus-within .act{opacity:1}
+.proc .act button{font-size:11.5px;color:var(--accent);padding:2px 5px;border-radius:4px}
+.proc .act button:hover{background:color-mix(in srgb,var(--accent) 12%,transparent)}
+.auto-row{display:flex;align-items:center;justify-content:space-between;gap:20px;padding:11px 14px}
+.auto-row .l{font-size:12.5px}
+.auto-row .hint{margin-top:2px;font-size:11.5px;color:var(--text-3)}
+.sw{width:34px;height:20px;border-radius:20px;background:#c9c9cf;position:relative;transition:background .18s;flex-shrink:0}
+@media (prefers-color-scheme:dark){.sw{background:#4a4a50}}
+.sw::after{content:"";position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.25);transition:transform .18s}
+.sw[aria-checked=true]{background:var(--switch)}
+.sw[aria-checked=true]::after{transform:translateX(14px)}
+.sw:active::after{width:20px}
+.note{margin-top:2px;padding:10px 12px;border-radius:9px;background:color-mix(in srgb,var(--amber) 12%,var(--card));border:1px solid color-mix(in srgb,var(--amber) 30%,var(--line));font-size:12px;line-height:1.5;color:var(--text)}
+.note b{font-weight:600}
+.note code{font-family:var(--mono);font-size:11.5px}
+.foot{font-size:11.5px;color:var(--text-3);margin:10px 2px 0;line-height:1.5}
+.logs{margin-top:10px;border-top:1px solid var(--line-2);padding:10px 14px 12px}
+.logs-h{display:flex;align-items:center;justify-content:space-between;font-size:11px;color:var(--text-3);font-family:var(--mono);margin-bottom:6px}
+.logs-h button{color:var(--accent);font-size:11.5px;font-family:-apple-system,sans-serif}
+.logs pre{margin:0;max-height:170px;overflow:auto;font:11.5px/1.6 var(--mono);color:var(--text-2);white-space:pre-wrap}
+.logs pre i{font-style:normal;color:var(--red)}
+.logs pre s{text-decoration:none;color:var(--text-3)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:5px}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside>
+    <div class="traffic"><i class="r"></i><i class="y"></i><i class="g"></i></div>
+    <div class="side-head"><b>Wick</b><div id="summary"></div></div>
+    <nav id="list" aria-label="Services"></nav>
+  </aside>
+  <main>
+    <div class="toolbar"><span>Services</span><div class="tools"><span class="bg-pill"><span class="dot running"></span>Background <b>Connected</b></span><button class="btn" id="refresh">Refresh</button></div></div>
+    <div class="scroll" id="detail"></div>
+  </main>
+</div>
+<script>
+const LOGS={
+  "chat-web":["10:41:02  ready  listening on 127.0.0.1:3000","10:41:02  info   websocket gateway attached","10:46:18  info   3 clients connected"],
+  "chat-worker":["10:41:03  info   starting worker on 127.0.0.1:3001","10:41:03  error  bind EADDRINUSE 127.0.0.1:3001","10:41:05  info   retry 1/3 after 2s","10:41:07  error  bind EADDRINUSE 127.0.0.1:3001","10:41:09  info   retry 2/3 after 2s","10:41:11  error  bind EADDRINUSE 127.0.0.1:3001","10:41:13  info   retry 3/3 after 2s","10:41:15  error  bind EADDRINUSE 127.0.0.1:3001","10:41:15  fatal  retry budget used, exit 1"],
+  "chat-tunnel":["10:41:02  ready  https://unichat.tail5dceb8.ts.net","10:46:31  info   heartbeat ok"],
+  "neko":["10:41:02  info   listening on 127.0.0.1:7301","10:44:10  info   proxy: 12 upstreams loaded","10:46:02  info   heartbeat ok"],
+  "dsh-web":["10:34:02  info   last exit 0 after SIGTERM"]
+};
+const SVC=[
+ {name:"Neko Master",status:"running",url:"http://127.0.0.1:7301",autostart:true,uptime:"3d 4h",retries:0,processes:[{id:"neko",title:"Neko Master",status:"running",pid:3120,cpu:1.4,rss:118,ready:"Ready"}]},
+ {name:"BookOrbit",status:"stopped",url:"http://127.0.0.1:5180",autostart:false,uptime:"",retries:0,exit:0,processes:[{id:"bookorbit",title:"BookOrbit",status:"stopped",exit:0,retries:0}]},
+ {name:"dsh",status:"stopped",url:"https://macbook-pro.tail5dceb8.ts.net",autostart:false,uptime:"",retries:0,processes:[
+   {id:"dsh-web",title:"dsh Web",status:"stopped",exit:0,retries:0},
+   {id:"dsh-scheduler",title:"dsh Scheduler",status:"stopped",exit:0,retries:0},
+   {id:"dsh-tunnel",title:"dsh Tunnel",status:"stopped",exit:0,retries:0}]},
+ {name:"UniChat",status:"partial",url:"https://unichat.tail5dceb8.ts.net",autostart:true,uptime:"",retries:3,processes:[
+   {id:"chat-web",title:"chat-web",status:"running",pid:4812,cpu:2.1,rss:84,ready:"Ready"},
+   {id:"chat-worker",title:"chat-worker",status:"failed",exit:1,retries:3,error:"EADDRINUSE :3001"},
+   {id:"chat-tunnel",title:"chat-tunnel",status:"running",pid:4839,cpu:0.3,rss:22,ready:"Ready"}]},
+ {name:"Memos",status:"stopped",url:"http://127.0.0.1:5230",autostart:true,uptime:"",retries:0,exit:0,processes:[{id:"memos",title:"Memos",status:"stopped",exit:0,retries:0}]},
+ {name:"CV Studio",status:"running",url:"http://127.0.0.1:7860",autostart:false,uptime:"12h 08m",retries:0,processes:[{id:"cv",title:"CV Studio",status:"running",pid:2214,cpu:6.8,rss:302,ready:"Ready"}]},
+ {name:"Quick Reading",status:"running",url:"http://127.0.0.1:4321",autostart:true,uptime:"3d 4h",retries:0,processes:[{id:"qr",title:"Quick Reading",status:"running",pid:9021,cpu:0.2,rss:46,ready:"Ready"}]},
+ {name:"Ziqian Blog",status:"running",url:"http://127.0.0.1:1313",autostart:true,uptime:"3d 4h",retries:0,processes:[{id:"blog",title:"Ziqian Blog",status:"running",pid:1888,cpu:0.4,rss:74,ready:"Ready"}]},
+ {name:"WeChat Download API",status:"stopped",url:"http://127.0.0.1:8021",autostart:false,uptime:"",retries:0,exit:1,processes:[{id:"wc",title:"WeChat Download API",status:"stopped",exit:1,retries:0}]},
+ {name:"PhraseVault Mobile",status:"running",url:"http://127.0.0.1:8787",autostart:false,uptime:"2d 11h",retries:0,processes:[{id:"pv",title:"PhraseVault Mobile",status:"running",pid:6440,cpu:0.9,rss:63,ready:"Ready"}]},
+ {name:"RSS Harbor",status:"running",url:"http://127.0.0.1:1200",autostart:true,uptime:"6h 21m",retries:0,processes:[{id:"rss",title:"RSS Harbor",status:"running",pid:5122,cpu:1.1,rss:88,ready:"Ready"}]}
+];
+const LABEL={running:"Running",partial:"Partially running",stopped:"Stopped",failed:"Failed",starting:"Starting"};
+const $=s=>document.querySelector(s);
+let selected="UniChat",logFor="";
+const row=(k,v)=>`<div class="row"><span class="k">${k}</span><span class="v">${v}</span></div>`;
+function logsBlock(s){
+  const p=s.processes.find(p=>p.id===logFor);if(!p)return "";
+  const lines=(LOGS[p.id]||["10:41:02  info   last exit 0 after SIGTERM","10:34:02  info   service stopped by console"]).map(l=>l.replace(/\b(error|fatal)\b/g,"<i>$1</i>").replace(/^\d\d:\d\d:\d\d/,"<s>$&</s>"));
+  return `<div class="logs"><div class="logs-h"><span>${p.title}</span><button data-a="close">Close</button></div><pre>${lines.join("\n")}</pre></div>`;
+}
+function renderDetail(){
+  const s=SVC.find(x=>x.name===selected);
+  const anyRunning=s.processes.some(p=>p.status==="running");
+  const grouped=s.processes.length>1;
+  const one=s.processes[0];
+  document.title=`Wick · ${s.name}`;
+  $("#detail").innerHTML=`
+    <div class="head">
+      <div><h1>${s.name}</h1><div class="sub" data-s="${s.status}"><i class="dot ${s.status}"></i>${LABEL[s.status]}</div></div>
+      <div class="actions">
+        <button class="btn ${s.status!=="running"?"primary":""}" ${s.status==="running"?"disabled":""}>Start</button>
+        <button class="btn" ${anyRunning?"":"disabled"}>Stop</button>
+        <button class="btn" ${anyRunning?"":"disabled"}>Restart</button>
+      </div>
+    </div>
+    <div class="card">
+      ${grouped?"":row("PID",`<span class="mono">${anyRunning?one.pid:"–"}</span>`)}
+      ${grouped?"":row("CPU",`<span class="mono">${anyRunning?one.cpu.toFixed(1)+"%":"–"}</span>`)}
+      ${grouped?"":row("Memory",`<span class="mono">${anyRunning?one.rss+" MiB":"–"}</span>`)}
+      ${grouped?"":row(anyRunning?"Uptime":"Exit code",`<span class="mono">${anyRunning?s.uptime:s.exit??"–"}</span>`)}
+      <div class="row"><span class="k">Address</span><span class="v-group"><span class="u">${s.url}</span><button class="link">Open in Browser ↗</button></span></div>
+      <div class="auto-row"><div><div class="l">Start at login</div><div class="hint">Applies at next login. Does not change this session.</div></div><button class="sw" id="sw" role="switch" aria-checked="${s.autostart}" aria-label="Start at login"></button></div>
+    </div>
+    ${grouped?`<div class="sub-h">Processes<span>${s.processes.filter(p=>p.status==="running").length} of ${s.processes.length} running</span></div>
+      <div class="card">
+        <div class="proc-head"><div>Process</div><div>State</div><div class="num">PID</div><div class="num">CPU</div><div class="num">RSS</div><div></div></div>
+        ${s.processes.map(p=>`<div class="proc">
+          <div class="nm"><i class="dot ${p.status}"></i><span>${p.title}</span></div>
+          <div class="st" data-s="${p.status}">${LABEL[p.status]}${p.error?`<span class="why">${p.error}</span>`:""}</div>
+          <div class="num">${p.pid??"–"}</div>
+          <div class="num">${p.cpu!==undefined?p.cpu.toFixed(1)+"%":"–"}</div>
+          <div class="num">${p.rss?p.rss+" M":"–"}</div>
+          <div class="act"><button>${p.status==="running"?"Restart":"Start"}</button><button data-a="logs" data-p="${p.id}">Logs</button></div>
+        </div>`).join("")}
+        ${logsBlock(s)}
+      </div>`:""}
+    ${s.status==="partial"&&s.retries>=3?`<div class="note"><b>Retry budget used (3/3).</b> chat-worker keeps exiting on <code>EADDRINUSE :3001</code>. Free the port, then Start; running processes stay up.</div>`:""}
+    ${grouped?"":`<div class="card"><div class="row"><span class="k">Recent logs</span><span class="v"><button class="link" data-a="logs" data-p="${s.processes[0].id}">${logFor===s.processes[0].id?"Hide logs":"Show logs"}</button></span></div>${logFor?`<div style="padding:0 14px 8px">${logsBlock(s)}</div>`:""}</div>`}
+    <p class="foot">${grouped?"Start waits for healthy dependencies. Stop runs in reverse order.":"Memory is main-process RSS. Running does not guarantee the page is ready."}</p>`;
+  $("#sw").onclick=e=>{s.autostart=!s.autostart;e.currentTarget.setAttribute("aria-checked",s.autostart)};
+  $("#detail").querySelectorAll("[data-a=logs]").forEach(b=>b.onclick=()=>{logFor=logFor===b.dataset.p?"":b.dataset.p;renderDetail()});
+  $("#detail").querySelector("[data-a=close]")?.addEventListener("click",()=>{logFor="";renderDetail()});
+}
+function renderList(){
+  $("#list").innerHTML=SVC.map(s=>`<button class="svc" data-n="${s.name}" data-s="${s.status}" aria-current="${s.name===selected}">
+    <i class="dot ${s.status}"></i><span class="n">${s.name}</span><span class="st">${s.status==="partial"?"1/3":s.status==="failed"?"fail":""}</span></button>`).join("");
+  $("#list").querySelectorAll(".svc").forEach(b=>b.onclick=()=>{selected=b.dataset.n;logFor="";renderList();renderDetail()});
+  const running=SVC.filter(s=>s.status==="running").length;
+  $("#summary").textContent=`${running} running · ${SVC.length} services`;
+}
+renderList();renderDetail();
+</script>
+</body>
+</html>

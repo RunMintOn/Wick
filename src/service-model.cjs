@@ -57,7 +57,7 @@ function processStatus(state){
  if(state.status==='Not applied')return 'Not applied';
  if(state.status==='Restarting')return 'Restarting';
  if(state.is_running){
-  if(state.is_ready==='Not Ready')return 'Unhealthy';
+  if(state.hasProbe&&state.is_ready==='Not Ready')return 'Unhealthy';
   if(state.hasProbe&&state.is_ready!=='Ready')return 'Starting';
   return 'Running';
  }

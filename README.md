@@ -21,6 +21,7 @@ First normal launch creates the service configuration and a user-level login bac
 - Select a service to see status, PID, CPU, main-process RSS, address and exit details.
 - Use **Start**, **Stop**, **Restart** or **Show logs**. **Open in Browser ↗** is next to the service Address.
 - A service can contain multiple processes. Its detail shows each process, dependency, readiness and logs. Start waits for healthy dependencies; partial failures keep already-running processes and can be retried. Stop runs in reverse dependency order. One login switch controls the whole service.
+- **Health check** appears only for a running process with a configured check: Passed, Failed or Checking. This applies to single-process services too. Without a check, Running means the process is active, not that its web page is ready. Stopped processes do not show live resource readings.
 - The top indicator reports the background connection: Connected, Connecting or Unavailable. Configuration errors do not mean the background is disconnected. Use **Reconnect** when unavailable.
 - **Start at login** affects the next background startup, not the current service state.
 - Closing the window quits the console. Services continue running.

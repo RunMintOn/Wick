@@ -16,7 +16,7 @@
     "service": "node scripts/service.cjs",
     "icon": "sh scripts/build-icon.sh",
     "skill:install": "node scripts/install-skill.cjs",
-    "build": "npm run icon && electron-packager . Wick --platform=darwin --arch=arm64 --out=dist --overwrite --no-asar --icon=assets/icon.icns --app-bundle-id=dev.wick --ignore=\"^/(tests|docs|test-results|playwright-report|\\.scratch|\\.git)(/|$)\" && sh scripts/set-display-name.sh"
+    "build": "npm run icon && electron-packager . Wick --platform=darwin --arch=arm64 --out=dist --overwrite --no-asar --icon=assets/icon.icns --app-bundle-id=dev.wick --ignore=\"^/(tests|docs|preview|test-results|playwright-report|\\.scratch|\\.git)(/|$)\" && sh scripts/set-display-name.sh"
   },
   "dependencies": {
     "yaml": "^2.8.1"

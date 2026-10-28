@@ -6,8 +6,8 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Wick</title><link rel="stylesheet" href="style.css">
 </head>
-<body>
-<aside><header><span id="summary">Local services</span></header><nav id="services" aria-label="Services"></nav></aside>
-<main><div class="toolbar"><span>Services</span><div class="toolbar-status"><span id="background-status" class="background-status" data-state="connecting" role="status" aria-label="Background connection" aria-live="polite" title="Connection to the background manager. Service health is shown separately."><span class="indicator" aria-hidden="true"></span><span>Background</span><span id="background-label">Connecting</span></span><button id="refresh" title="Refresh services" disabled>Refresh</button></div></div><div id="error" role="alert" hidden></div><section id="detail"><div class="empty"><h2>Your local services</h2><p>Ask your Agent to register a service.</p></div></section></main>
+<body class="app">
+<aside><div class="traffic" aria-hidden="true"></div><header class="side-head"><div class="wordmark">Wick</div><div id="band" class="band" aria-hidden="true"></div><div id="summary" class="counts">Local services</div></header><nav id="services" aria-label="Services"></nav><footer class="side-foot">Local services. Independent of this window.</footer></aside>
+<main><div class="toolbar"><div class="crumb">Services <span>/</span> <b id="crumb"></b></div><div class="tools"><span id="background-status" class="conn" data-state="connecting" role="status" aria-label="Background connection" aria-live="polite" title="Connection to the background manager. Service health is shown separately."><i aria-hidden="true"></i><span>Background</span><b id="background-label">Connecting</b></span><button id="refresh" class="btn ghost" title="Refresh services" disabled>Refresh</button></div></div><div class="scroll"><div id="error" role="alert" hidden></div><section id="detail"><div class="empty"><h1>Your local services</h1><p>Ask your Agent to register a service.</p></div></section></div></main>
 <script src="renderer.js"></script>
 </body></html>

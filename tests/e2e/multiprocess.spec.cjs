@@ -19,6 +19,12 @@ test('console presents one service, dependency failures, component logs and one 
   await expect(page.locator('[data-service="neko"] small')).toHaveText('Partially running');
   await expect(page.locator('[data-component="page"]')).toContainText('Failed');
   await expect(page.locator('[data-component="page"]')).toContainText('collector');
+  await expect(page.locator('[data-component="collector"] .fact').filter({has:page.getByText('Uptime',{exact:true})}).locator('dd')).toHaveText(/^\d/);
+  await expect(page.locator('[data-component="collector"] .fact').filter({has:page.getByText('Health check',{exact:true})}).locator('dd')).toHaveText('Passed');
+  await expect(page.locator('[data-component="page"] .meta')).not.toContainText('Health check');
+  await expect(page.locator('[data-component="page"] .meta')).not.toContainText('Readiness');
+  await expect(page.locator('[data-component="page"] .meta')).not.toContainText('·');
+  await expect(page.locator('[data-component="page"] .inactive-metrics')).toHaveText('Not running');
   await expect(page.locator('#action-start')).toBeEnabled();
   await page.locator('[data-component="page"]').getByRole('button',{name:'Show logs',exact:true}).click();
   await expect(page.locator('pre')).toContainText(/No such file|not found/);
@@ -27,6 +33,15 @@ test('console presents one service, dependency failures, component logs and one 
   await expect(page.getByLabel('Start at login')).toBeChecked();
   expect((await manager.snapshot()).services[0].components[0].pid).toBe(pid);
   await page.screenshot({path:testInfo.outputPath('multiprocess-partial.png'),fullPage:true});
+  const alignment=await page.locator('[data-component="collector"] .proc').evaluate(row=>{
+    const metric=row.querySelector('.num').getBoundingClientRect();
+    const button=row.querySelector('.act button').getBoundingClientRect();
+    return Math.abs(metric.y+metric.height/2-button.y-button.height/2);
+  });
+  expect(alignment).toBeLessThan(1);
+  await page.setViewportSize({width:720,height:500});
+  expect(await page.locator('.scroll').evaluate(node=>node.scrollWidth<=node.clientWidth)).toBe(true);
+  await page.screenshot({path:testInfo.outputPath('multiprocess-720.png')});
   await page.locator('#action-stop').click();
   // Stopping the remaining process does not erase the page's failure history.
   await expect(page.locator('#action-stop')).toBeDisabled();
@@ -44,6 +59,7 @@ test('component controls confirm impact and keep dependents running',async()=>{
   const page=await app.firstWindow();
   const collectorPanel=page.locator('[data-component="collector"]');
   const pagePanel=page.locator('[data-component="page"]');
+  await expect(pagePanel.locator('.act button')).toHaveCount(4);
   await pagePanel.getByRole('button',{name:'Start',exact:true}).click();await reachable(home,'page');
   await expect(collectorPanel.getByRole('button',{name:'Stop',exact:true})).toBeEnabled();
   const before=(await manager.snapshot()).services[0].components;

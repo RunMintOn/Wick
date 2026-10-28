@@ -10,7 +10,7 @@ if(process.env.WICK_HOME){
 }
 let window;
 function createWindow(){
-  window=new BrowserWindow({show:process.env.WICK_HEADLESS!=='1',width:960,height:680,minWidth:720,minHeight:500,title:'Wick',titleBarStyle:'hiddenInset',backgroundColor:'#f5f5f7',webPreferences:{preload:path.join(__dirname,'preload.cjs'),nodeIntegration:false,contextIsolation:true,sandbox:true}});
+  window=new BrowserWindow({show:process.env.WICK_HEADLESS!=='1',width:960,height:680,minWidth:720,minHeight:500,title:'Wick',titleBarStyle:'hiddenInset',backgroundColor:'#1b1b1d',webPreferences:{preload:path.join(__dirname,'preload.cjs'),nodeIntegration:false,contextIsolation:true,sandbox:true}});
   window.webContents.setWindowOpenHandler(()=>({action:'deny'}));
   window.webContents.on('will-navigate',event=>event.preventDefault());
   window.loadFile(path.join(__dirname,'index.html'));

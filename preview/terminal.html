@@ -1,0 +1,215 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Wick · Terminal</title>
+<style>
+*{box-sizing:border-box}
+:root{
+  --bg:#070a0a;--side:#0a0e0e;--panel:#0c1112;--raise:#111819;
+  --line:#1b2626;--line-2:#141d1d;
+  --text:#c9d6cd;--text-2:#93a49b;--text-3:#7d8f86;
+  --green:#6cdc8f;--amber:#e2b45c;--red:#ff7d6d;--cyan:#5fb6cf;
+  --mono:"SF Mono",ui-monospace,Menlo,monospace;
+}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--text);font:11.5px/1.55 var(--mono);-webkit-font-smoothing:antialiased;letter-spacing:.01em}
+button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer}
+.app{display:grid;grid-template-columns:254px 1fr;height:100vh;overflow:hidden}
+aside{background:var(--side);border-right:1px solid var(--line);display:flex;flex-direction:column;min-height:0}
+.traffic{display:flex;gap:7px;padding:18px 16px 0;height:50px;flex-shrink:0}
+.traffic i{width:10px;height:10px;border-radius:50%;background:#2a3535}
+.traffic .r{background:#c9695e}.traffic .y{background:#c39d54}.traffic .g{background:#5da377}
+.brand{display:flex;align-items:baseline;justify-content:space-between;padding:0 16px;flex-shrink:0}
+.brand b{font-size:12.5px;color:var(--text);font-weight:400;letter-spacing:.16em}
+.brand span{font-size:10px;color:var(--text-3)}
+.strip{display:flex;gap:2px;padding:10px 16px 9px;flex-shrink:0}
+.strip i{flex:1;height:4px;background:#1d2727}
+.strip i[data-s=running]{background:var(--green)}
+.strip i[data-s=partial]{background:var(--amber)}
+.strip i[data-s=failed]{background:var(--red)}
+.meta{padding:0 16px 10px;font-size:10px;color:var(--text-3);letter-spacing:.04em;border-bottom:1px solid var(--line);flex-shrink:0}
+nav{flex:1;overflow:auto;min-height:0;padding:6px 0;scrollbar-width:thin}
+nav::-webkit-scrollbar{width:7px}nav::-webkit-scrollbar-thumb{background:#22302f}
+.svc{width:100%;display:grid;grid-template-columns:12px 1fr auto;align-items:center;gap:7px;height:27px;padding:0 16px;text-align:left;color:var(--text-2)}
+.svc:hover{background:var(--raise);color:var(--text)}
+.svc[aria-current=true]{background:#101a1b;color:var(--text)}
+.svc[aria-current=true] .n::before{content:"▸ ";color:var(--amber)}
+.svc .n{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.svc .st{font-size:10px;color:var(--text-3);text-transform:uppercase;letter-spacing:.06em}
+.svc[data-s=partial] .st{color:var(--amber)}
+.svc[data-s=failed] .st{color:var(--red)}
+.svc[data-s=stopped] .n{color:var(--text-3)}
+.glyph{font-style:normal;font-size:9px;line-height:1;color:#3d4b46}
+.glyph[data-s=running]{color:var(--green)}
+.glyph[data-s=partial]{color:var(--amber)}
+.glyph[data-s=failed]{color:var(--red)}
+.side-foot{padding:8px 16px 11px;border-top:1px solid var(--line);font-size:10px;color:var(--text-3);flex-shrink:0;display:flex;justify-content:space-between}
+.side-foot b{color:var(--green);font-weight:400}
+main{display:flex;flex-direction:column;min-width:0;min-height:0}
+.toolbar{height:36px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;padding:0 20px;flex-shrink:0;font-size:10.5px;color:var(--text-3)}
+.toolbar b{color:var(--text-2);font-weight:400}
+.bracket{font-size:10.5px;color:var(--text-2);padding:1px 0;letter-spacing:.04em}
+.bracket:hover{color:var(--text)}
+.bracket:active{transform:translateY(1px)}
+.bracket:disabled{color:#3d4a46;cursor:default}
+.bracket.on{color:var(--amber)}
+.scroll{overflow:auto;padding:20px 22px 28px;min-height:0}
+#detail{max-width:1010px}
+.head{display:flex;align-items:flex-end;justify-content:space-between;gap:20px;border-bottom:1px solid var(--line);padding-bottom:12px}
+h1{margin:0;font-size:20px;line-height:1.2;font-weight:500;letter-spacing:.02em;color:#e2ece5}
+.sub{margin-top:7px;font-size:11px;letter-spacing:.05em}
+.sub[data-s=running]{color:var(--green)}
+.sub[data-s=partial]{color:var(--amber)}
+.sub[data-s=stopped]{color:var(--text-3)}
+.sub[data-s=failed]{color:var(--red)}
+.actions{display:flex;gap:12px;flex-shrink:0;align-items:center;padding-bottom:3px}
+.kv{border-bottom:1px solid var(--line-2)}
+.krow{display:flex;align-items:baseline;gap:8px;padding:6px 0;font-size:11px}
+.krow .k{color:var(--text-3);width:84px;flex-shrink:0}
+.krow .dots{flex:1;border-bottom:1px dotted #243030;transform:translateY(-3px);min-width:12px}
+.krow .v{color:var(--text);text-align:right;font-variant-numeric:tabular-nums}
+.krow .v.dim{color:var(--text-2)}
+.krow .v.green{color:var(--green)}
+.krow .v.amber{color:var(--amber)}
+.krow .v.red{color:var(--red)}
+.sec-h{display:flex;align-items:center;gap:10px;margin:18px 0 6px;font-size:10px;letter-spacing:.14em;color:var(--text-3);text-transform:uppercase}
+.sec-h::after{content:"";flex:1;height:1px;background:var(--line)}
+.sec-h span{letter-spacing:.04em;text-transform:none;color:var(--text-3)}
+.sec-h .bracket{text-transform:none;letter-spacing:0}
+table{width:100%;border-collapse:collapse;font-size:11px;border:1px solid var(--line);background:var(--panel)}
+th{font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--text-3);text-align:left;padding:6px 9px;background:#0a1011;border-bottom:1px solid var(--line);border-right:1px solid var(--line-2);font-weight:400}
+th:last-child,td:last-child{border-right:0}
+td{padding:6px 9px;border-bottom:1px solid var(--line-2);border-right:1px solid var(--line-2);color:var(--text-2)}
+tr:last-child td{border-bottom:0}
+td.nm{color:var(--text);white-space:nowrap}
+td.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+th.num{text-align:right}
+tr:hover td{background:#101819}
+.st-c{display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.why{color:var(--text-3);font-size:10px;margin-left:6px;white-space:nowrap}
+.st-c[data-s=running]{color:var(--green)}.st-c[data-s=partial]{color:var(--amber)}.st-c[data-s=failed]{color:var(--red)}.st-c[data-s=stopped]{color:var(--text-3)}
+.acts{display:flex;gap:8px;justify-content:flex-end;white-space:nowrap}
+.acts button{font-size:10px;color:var(--text-3)}
+.acts button:hover{color:var(--amber)}
+.note{margin-top:10px;padding:7px 10px;border:1px solid #33291a;background:#15110b;color:#d8bb8d;font-size:10.5px;line-height:1.6}
+.note b{color:var(--amber);font-weight:400}
+.auto{display:flex;align-items:baseline;gap:8px;margin-top:16px;padding-top:10px;border-top:1px solid var(--line);font-size:11px;flex-wrap:wrap}
+.auto .hint{color:var(--text-3);font-size:10px}
+.logs{margin-top:8px;border:1px solid var(--line);background:#050808}
+.logs-h{display:flex;justify-content:space-between;padding:5px 9px;border-bottom:1px solid var(--line-2);font-size:10px;color:var(--text-3)}
+.logs-h button{font-size:10px;color:var(--text-3)}
+.logs-h button:hover{color:var(--amber)}
+.logs pre{margin:0;padding:8px 9px;max-height:180px;overflow:auto;font:10.5px/1.7 var(--mono);color:#9fb0a7;white-space:pre-wrap}
+.logs pre i{font-style:normal;color:var(--red)}
+.logs pre s{text-decoration:none;color:#4f5f58}
+:focus-visible{outline:1px solid var(--amber);outline-offset:2px}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside>
+    <div class="traffic"><i class="r"></i><i class="y"></i><i class="g"></i></div>
+    <div class="brand"><b>WICK</b><span>v0.1</span></div>
+    <div class="strip" id="strip"></div>
+    <div class="meta" id="summary"></div>
+    <nav id="list" aria-label="Services"></nav>
+    <div class="side-foot"><span>bg:connected</span><span>sync 2s</span></div>
+  </aside>
+  <main>
+    <div class="toolbar"><span>wick <b>/ services / <span id="crumb"></span></b></span><button class="bracket" id="refresh">[ refresh ]</button></div>
+    <div class="scroll" id="detail"></div>
+  </main>
+</div>
+<script>
+const LOGS={
+  "chat-web":["10:41:02  ready  listening on 127.0.0.1:3000","10:41:02  info   websocket gateway attached","10:46:18  info   3 clients connected"],
+  "chat-worker":["10:41:03  info   starting worker on 127.0.0.1:3001","10:41:03  error  bind EADDRINUSE 127.0.0.1:3001","10:41:05  info   retry 1/3 after 2s","10:41:07  error  bind EADDRINUSE 127.0.0.1:3001","10:41:09  info   retry 2/3 after 2s","10:41:11  error  bind EADDRINUSE 127.0.0.1:3001","10:41:13  info   retry 3/3 after 2s","10:41:15  error  bind EADDRINUSE 127.0.0.1:3001","10:41:15  fatal  retry budget used, exit 1"],
+  "chat-tunnel":["10:41:02  ready  https://unichat.tail5dceb8.ts.net","10:46:31  info   heartbeat ok"],
+  "neko":["10:41:02  info   listening on 127.0.0.1:7301","10:44:10  info   proxy: 12 upstreams loaded","10:46:02  info   heartbeat ok"],
+  "dsh-web":["10:34:02  info   last exit 0 after SIGTERM"]
+};
+const SVC=[
+ {name:"Neko Master",status:"running",url:"http://127.0.0.1:7301",autostart:true,uptime:"3d04h",retries:0,processes:[{id:"neko",title:"Neko Master",status:"running",pid:3120,cpu:1.4,rss:118,ready:"Ready"}]},
+ {name:"BookOrbit",status:"stopped",url:"http://127.0.0.1:5180",autostart:false,uptime:"",retries:0,exit:0,processes:[{id:"bookorbit",title:"BookOrbit",status:"stopped",exit:0,retries:0}]},
+ {name:"dsh",status:"stopped",url:"https://macbook-pro.tail5dceb8.ts.net",autostart:false,uptime:"",retries:0,processes:[
+   {id:"dsh-web",title:"dsh Web",status:"stopped",exit:0,retries:0},
+   {id:"dsh-scheduler",title:"dsh Scheduler",status:"stopped",exit:0,retries:0},
+   {id:"dsh-tunnel",title:"dsh Tunnel",status:"stopped",exit:0,retries:0}]},
+ {name:"UniChat",status:"partial",url:"https://unichat.tail5dceb8.ts.net",autostart:true,uptime:"",retries:3,processes:[
+   {id:"chat-web",title:"chat-web",status:"running",pid:4812,cpu:2.1,rss:84,ready:"Ready"},
+   {id:"chat-worker",title:"chat-worker",status:"failed",exit:1,retries:3,error:"EADDRINUSE :3001"},
+   {id:"chat-tunnel",title:"chat-tunnel",status:"running",pid:4839,cpu:0.3,rss:22,ready:"Ready"}]},
+ {name:"Memos",status:"stopped",url:"http://127.0.0.1:5230",autostart:true,uptime:"",retries:0,exit:0,processes:[{id:"memos",title:"Memos",status:"stopped",exit:0,retries:0}]},
+ {name:"CV Studio",status:"running",url:"http://127.0.0.1:7860",autostart:false,uptime:"12h08m",retries:0,processes:[{id:"cv",title:"CV Studio",status:"running",pid:2214,cpu:6.8,rss:302,ready:"Ready"}]},
+ {name:"Quick Reading",status:"running",url:"http://127.0.0.1:4321",autostart:true,uptime:"3d04h",retries:0,processes:[{id:"qr",title:"Quick Reading",status:"running",pid:9021,cpu:0.2,rss:46,ready:"Ready"}]},
+ {name:"Ziqian Blog",status:"running",url:"http://127.0.0.1:1313",autostart:true,uptime:"3d04h",retries:0,processes:[{id:"blog",title:"Ziqian Blog",status:"running",pid:1888,cpu:0.4,rss:74,ready:"Ready"}]},
+ {name:"WeChat Download API",status:"stopped",url:"http://127.0.0.1:8021",autostart:false,uptime:"",retries:0,exit:1,processes:[{id:"wc",title:"WeChat Download API",status:"stopped",exit:1,retries:0}]},
+ {name:"PhraseVault Mobile",status:"running",url:"http://127.0.0.1:8787",autostart:false,uptime:"2d11h",retries:0,processes:[{id:"pv",title:"PhraseVault Mobile",status:"running",pid:6440,cpu:0.9,rss:63,ready:"Ready"}]},
+ {name:"RSS Harbor",status:"running",url:"http://127.0.0.1:1200",autostart:true,uptime:"6h21m",retries:0,processes:[{id:"rss",title:"RSS Harbor",status:"running",pid:5122,cpu:1.1,rss:88,ready:"Ready"}]}
+];
+const LABEL={running:"running",partial:"partially running",stopped:"stopped",failed:"failed",starting:"starting"};
+const $=s=>document.querySelector(s);
+let selected="UniChat",logFor="";
+const kv=(k,v,cls="")=>`<div class="krow"><span class="k">${k}</span><span class="dots"></span><span class="v ${cls}">${v}</span></div>`;
+function logsBlock(s){
+  const p=s.processes.find(p=>p.id===logFor);if(!p)return "";
+  const lines=(LOGS[p.id]||["10:41:02  info   last exit 0 after SIGTERM","10:34:02  info   service stopped by console"]).map(l=>l.replace(/\b(error|fatal)\b/g,"<i>$1</i>").replace(/^\d\d:\d\d:\d\d/,"<s>$&</s>"));
+  return `<div class="logs"><div class="logs-h"><span>tail ${p.title} · 50</span><button data-a="close">[ x ]</button></div><pre>${lines.join("\n")}</pre></div>`;
+}
+function renderDetail(){
+  const s=SVC.find(x=>x.name===selected);
+  const anyRunning=s.processes.some(p=>p.status==="running");
+  const grouped=s.processes.length>1;
+  const one=s.processes[0];
+  $("#crumb").textContent=s.name;
+  document.title=`Wick · ${s.name}`;
+  const facts=grouped?[
+    ["processes",`${s.processes.filter(p=>p.status==="running").length} / ${s.processes.length} up`]
+  ]:anyRunning?[
+    ["pid",one.pid],["cpu",one.cpu.toFixed(1)+"%"],["rss",one.rss+" MiB"],["uptime",s.uptime]
+  ]:[
+    ["exit",s.exit??"–"],["restarts",s.retries]
+  ];
+  $("#detail").innerHTML=`
+    <div class="head">
+      <div><h1>${s.name}</h1><div class="sub" data-s="${s.status}">${LABEL[s.status]}</div></div>
+      <div class="actions">
+        <button class="bracket ${s.status!=="running"?"on":""}" ${s.status==="running"?"disabled":""}>[ start ]</button>
+        <button class="bracket" ${anyRunning?"":"disabled"}>[ stop ]</button>
+        <button class="bracket" ${anyRunning?"":"disabled"}>[ restart ]</button>
+        <button class="bracket" style="color:var(--amber)">open ↗</button>
+      </div>
+    </div>
+    <div class="kv">${facts.map(f=>kv(f[0],f[1],f[2]||"")).join("")}${kv("address",s.url,"dim")}</div>
+    ${grouped?`<div class="sec-h">processes <span>${s.processes.length}</span></div>
+      <table><thead><tr><th>name</th><th>state</th><th class="num">pid</th><th class="num">cpu</th><th class="num">rss</th><th></th></tr></thead>
+      <tbody>${s.processes.map(p=>`<tr>
+        <td class="nm">${p.title}</td>
+        <td><span class="st-c" data-s="${p.status}">${LABEL[p.status]}</span>${p.error?`<span class="why">${p.error}</span>`:""}</td>
+        <td class="num">${p.pid??"–"}</td>
+        <td class="num">${p.cpu!==undefined?p.cpu.toFixed(1):"–"}</td>
+        <td class="num">${p.rss?p.rss+" M":"–"}</td>
+        <td><div class="acts"><button data-a="logs" data-p="${p.id}">logs</button><button>${p.status==="running"?"restart":"start"}</button></div></td>
+      </tr>`).join("")}</tbody></table>`:""}
+    ${s.status==="partial"&&s.retries>=3?`<div class="note"><b>retry budget used 3/3</b> · chat-worker exits on EADDRINUSE :3001. free the port, then start; running processes stay up.</div>`:""}
+    <div class="auto"><span>[${s.autostart?"x":" "}]</span><button class="bracket" id="sw" role="switch" aria-checked="${s.autostart}">start at login</button><span class="hint">applies at next login, not now</span></div>
+    ${grouped?"":`<div class="sec-h">recent logs <span><button class="bracket" data-a="logs" data-p="${one.id}">[ ${logFor===one.id?"hide":"show"} ]</button></span></div>`}
+    ${logsBlock(s)}`;
+  $("#sw").onclick=e=>{s.autostart=!s.autostart;e.currentTarget.setAttribute("aria-checked",s.autostart);renderDetail();renderList()};
+  $("#detail").querySelectorAll("[data-a=logs]").forEach(b=>b.onclick=()=>{logFor=logFor===b.dataset.p?"":b.dataset.p;renderDetail()});
+  $("#detail").querySelector("[data-a=close]")?.addEventListener("click",()=>{logFor="";renderDetail()});
+}
+function renderList(){
+  $("#list").innerHTML=SVC.map(s=>`<button class="svc" data-n="${s.name}" data-s="${s.status}" aria-current="${s.name===selected}">
+    <i class="glyph" data-s="${s.status}">${{running:"●",partial:"◐",failed:"✕",stopped:"○",starting:"◐"}[s.status]}</i><span class="n">${s.name}</span><span class="st">${s.status==="partial"?"1/3":""}</span></button>`).join("");
+  $("#list").querySelectorAll(".svc").forEach(b=>b.onclick=()=>{selected=b.dataset.n;logFor="";renderList();renderDetail()});
+  $("#strip").innerHTML=SVC.map(s=>`<i data-s="${s.status}"></i>`).join("");
+  const running=SVC.filter(s=>s.status==="running").length;
+  $("#summary").textContent=`svc ${running}/${SVC.length} running`;
+}
+renderList();renderDetail();
+</script>
+</body>
+</html>
