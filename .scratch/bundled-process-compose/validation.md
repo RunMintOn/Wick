@@ -41,3 +41,21 @@ Reviewed the complete change against repository instructions and the spec in the
 - This is an automated, isolated simulation of the documented Agent workflow, not a separate model/session independently interpreting the GitHub page.
 - The user's real login plist and bootstrap hashes were identical before/after the main test run. Existing services retained their running/stopped states and PIDs.
 - `npm install` / `npm audit` reported two existing high-severity dependency entries: Electron and transitive undici. Dependency manifests/lockfile were not upgraded as part of this task; assess these separately before public release.
+
+## Follow-up: daily App updated — 2026-10-28
+
+After the user authorized proceeding, rebuilt source commit `3c8fed9` into `/tmp/wick-final-local` and reran both packaged tests (2 passed) and the source typecheck. This build includes the final Skill edits and README memory observations.
+
+Replaced only `dist/Wick-darwin-arm64/Wick.app`, at its existing location. Opened the new App with a hidden window against the real background, queried its state, then closed the window.
+
+- Exactly one real Wick manager remained; its PID and executable were unchanged (existing Homebrew Process Compose).
+- All 11 service entries, including component PIDs and autostart settings, matched the pre-update snapshot.
+- Source configuration, generated runtime and login plist hashes were unchanged.
+- The normal App startup updated `bootstrap.sh` to use the bundled Process Compose on the next background startup. No current background/service restart was performed.
+- All observed console processes exited after window close.
+- Installed README and Skill hashes match the source files.
+- The existing `~/.agents/skills/wick` source symlink was left unchanged.
+
+Old App, bootstrap and source configuration are preserved locally in `evidence/backups/wick-before-bundled.Utw1BX/` (gitignored, contains private local configuration). Before/after observations and a hidden-window screenshot are in `evidence/local-update-before.json`, `evidence/local-update-after.json` and `evidence/local-updated-console.png`. No existing service actions or full business-level HTTP checks were performed during the real-environment probe.
+
+No relogin, dependency upgrades, push, DMG or Release in this follow-up. The user's normal App path still lives under `dist/`; do not remove or move that directory. A future default build overwrites this App, so use an independent `WICK_BUILD_OUT` for further verification.
