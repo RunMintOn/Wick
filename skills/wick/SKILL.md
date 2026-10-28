@@ -1,6 +1,6 @@
 ---
 name: wick
-description: 在 macOS 上操作 Wick：登记本机服务、接管已运行的后台进程、查询与启停服务、查看日志、设置登录自启、排查后台连接和异常恢复，以及移除登记。用户希望把终端里的 Web 或后端程序纳入图形管理时使用。
+description: 在 macOS 上操作和维护 Wick：登记本机服务、接管已有进程、查询与启停服务、查看日志、设置登录自启、排障、异常恢复、移除登记，以及更新 Wick。
 compatibility: macOS Apple Silicon；打包 Wick 自带 Process Compose、CLI 和运行时。直接运行源码另需 Node 与 Process Compose。
 disable-model-invocation: true
 ---
@@ -23,6 +23,8 @@ wick() { /bin/sh "$PROJECT/bin/wick" "$@"; }
 ```
 
 确认 `PROJECT/package.json` 的 `name` 是 `wick`，并执行 `wick --help`。打包版命令自动使用 App 内的 Electron 和 Process Compose，不需要 Node、npm、Homebrew 或源码。直接运行源码时需要 Node 与外部 Process Compose，默认 `/opt/homebrew/bin/process-compose`；`WICK_PC` 可覆盖两种运行方式的二进制。`WICK_HOME` 用于覆盖数据目录，例如隔离测试；使用时保持为绝对路径。
+
+服务查询与启停使用 `wick list`、`wick start|stop|restart`；配置修改使用 `wick validate`、`wick apply`；异常恢复使用 `wick recover`。参数以 `wick --help` 为准。更新 App 和移除登记没有专用 CLI 子命令，按下文对应流程执行。
 
 唯一配置是 `$HOME_DIR/services.yaml`，默认位于 `~/Library/Application Support/Wick/services.yaml`。`runtime.yaml` 是生成的 Process Compose 配置，不是另一份配置来源。保留现有服务和设置，只改本次任务涉及的内容。
 
@@ -212,7 +214,7 @@ Apply 会保留已登记服务在旧 `runtime.yaml` 中的 `disabled`，避免�
 
 ### 日志
 
-近期日志 REST 接口使用同一个 socket：
+近期日志 REST 接口使用同一个 socket，路径中的 `memos` 是 `processes` 下的进程标识。多进程服务先用 `wick list` 查看 `components`，逐个查询组成进程（例如 `neko-collector`），不使用分组服务名 `neko`：
 
 ```bash
 curl --unix-socket "$SOCKET" 'http://localhost/process/logs/memos/0/200'
@@ -251,4 +253,22 @@ wick recover memos
 
 移除服务前先确认用户要停止服务还是连同登记一起移除。移除登记会影响该服务的运行；程序、依赖和数据默认保留。应用移除后确认其他服务未受影响。登记本身不授权删除笔记、迁移数据、卸载 OrbStack 或移除 Docker 容器。
 
+1. 用 `wick list` 确认后台可连接，定位目标服务及全部组成进程，记录目标和其他运行中服务的 PID，保存源配置副本。
+2. 只需停止时执行 `wick stop <服务标识>`，不修改登记。需要移除时，先停止目标，等待全部目标 PID 退出和端口释放；停止失败则先排查，不继续删除登记。
+3. 从 `services.yaml` 的 `processes` 中移除目标登记；多进程服务同时移除对应的 `x-wick.services` 条目及其全部组成进程，不改其他服务。不直接编辑生成的 `runtime.yaml`。
+4. 执行 `wick validate && wick apply`。失败时保留配置副本和错误信息，修复后再继续，不声称移除成功。
+5. 重新执行 `wick list`，确认目标已不在列表中、旧进程未重新出现，其他服务保持原状态和 PID。程序与数据继续保留在原位置。
+
 完成条件：操作范围与用户要求一致；未授权的数据、程序和其他服务保持不动。报告最终状态，不把配置写入成功当作服务接入成功。
+
+## 更新 Wick
+
+更新控制台与重启后台是不同操作。替换 App 不表示正在运行的 Process Compose 已升级；不要为了更新窗口而停止整个后台。
+
+1. 确认实际运行的 App 或源码位置、目标版本及 `WICK_PC` 是否覆盖了包内版本。记录服务状态、PID、自启设置，保留旧 App 和源配置副本。更新已有授权时不重复询问。
+2. 有对应发布包时取得新 App；需要源码构建时，按目标版本 README 构建。使用独立目录或 `WICK_BUILD_OUT` 准备产物，不直接覆盖正在使用的 `dist/`，不覆盖源码中的用户改动。
+3. 准备完成后关闭旧控制台，不停止后台。替换固定安装位置的 App，保留数据目录和现有登录任务；不默认移动 App 或改写 LaunchAgent 定义。需要改变安装位置时，先说明对后台启动路径的影响。
+4. 从固定位置打开新 App，重新定位配套 CLI，检查 `wick --help`、`wick list`、目标服务实际入口及日志，比较更新前后的状态和 PID。正常打开 App 会更新其后台启动脚本；出现错误时保留旧版本和诊断信息，不用重启整个后台掩盖问题。
+5. 若更新要求切换后台版本，先核对当前后台进程的实际路径及版本依据，说明重启将影响全部托管服务；下次启动按登录自启设置运行，不保证恢复当前运行列表。取得这部分影响的授权后再单独安排，不把重启后台当成控制台更新的默认步骤。
+
+完成条件：新控制台和配套 CLI 可用，未授权重启的服务保持原状态和 PID，源配置及数据保留。分别报告控制台是否更新、运行中的后台是否切换；未实际注销再登录时，不声称登录自启已验证。
