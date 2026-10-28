@@ -20,7 +20,7 @@ A small macOS console for native local services. Electron supplies the window; P
 
 先确认是 macOS Apple Silicon（`uname -m` 输出 `arm64`），检查 `/Applications/Wick.app` 是否已经安装；已安装时复用，不擅自覆盖或升级。若已有旧版缺少下文的包内 CLI，先与用户确认升级，不静默覆盖。
 
-**目前尚未发布可下载的 Release。** 新安装暂时需要 Agent 从源码构建；构建机器需要 Node 22+ 和 macOS Command Line Tools，不需要安装 Process Compose。缺少构建工具时先说明并与用户确认安装方式。以后提供发布包时，直接安装 App 即可跳过构建：
+**目前尚未发布可下载的 Release。** 新安装暂时需要 Agent 从源码构建；构建机器需要 Node 22.12+ 和 macOS Command Line Tools，不需要安装 Process Compose。缺少构建工具时先说明并与用户确认安装方式。以后提供发布包时，直接安装 App 即可跳过构建：
 
 ```bash
 git clone https://github.com/RunMintOn/Wick.git
@@ -128,7 +128,7 @@ flowchart LR
 
 ## Develop and verify
 
-Direct source development still requires Node 22+ and a separately installed Process Compose (`brew install f1bonacc1/tap/process-compose`). The default source binary is `/opt/homebrew/bin/process-compose`; `WICK_PC` can override it in both source and packaged runs. Packaged runs default to their own pinned 1.122.0 binary.
+Direct source development still requires Node 22.12+ and a separately installed Process Compose (`brew install f1bonacc1/tap/process-compose`). The default source binary is `/opt/homebrew/bin/process-compose`; `WICK_PC` can override it in both source and packaged runs. Packaged runs default to their own pinned 1.122.0 binary.
 
 ```bash
 npm install

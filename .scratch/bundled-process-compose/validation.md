@@ -74,3 +74,27 @@ The user explicitly accepted stopping and restarting all managed services to swi
 - Opened the new console in a hidden window, confirmed it connected, then closed it. All service/component PIDs stayed unchanged across that window-close check, and only the bundled manager remained.
 
 Detailed before/after observations: `evidence/background-switch.json` (local, gitignored). Homebrew Process Compose remains installed but is no longer the running Wick manager. Actual logout/re-login was still not performed.
+
+## Follow-up: dependency security fixes — 2026-10-28
+
+Resolved the two dependency entries reported by `npm audit`:
+
+- Electron: 41.10.7 → 43.8.4; manifest now requires `^43.8.4`.
+- Transitive build-tool dependency undici: 7.30.0 → 7.30.1, within its existing allowed range. No override or new direct dependency was added.
+- README now states the required build Node version accurately: 22.12+.
+
+Chose the latest Electron 43 patch rather than an unsupported Electron 42 patch or a jump to 44/45. Electron supports the latest three stable majors (currently 43/44/45); 44 removes macOS 12 support. The new bundle still declares macOS 12.0 as its minimum. Reviewed the official 42/43 breaking changes, including Electron's new on-demand binary download; no application API changes were needed.
+
+Verification:
+
+- Final `npm audit`: 0 known dependency vulnerabilities.
+- Source typecheck passed.
+- Independent build at `/tmp/wick-security-validation` succeeded; the packaged executable reports Electron 43.8.4.
+- Full integration suite: 25 passed, 0 skipped, including packaged Agent onboarding and launchd bootstrap.
+- Hidden-window E2E suite: 9 passed.
+- Reviewed the manifest/lockfile/README diff against repository standards and the security-fix request; no remaining findings.
+- Real daily manager and all service/component PIDs, states and autostart settings were unchanged.
+
+This follow-up does not replace the daily App, restart services, push commits, change the application release version or publish a Release. The security-fixed App is an independently tested build; the daily App still needs to be replaced in the later packaging/install step. A clean audit is not a guarantee that all software is vulnerability-free.
+
+Sources: [Electron support policy](https://github.com/electron/electron/blob/v45.1.0/docs/tutorial/electron-timelines.md), [breaking changes](https://github.com/electron/electron/blob/v45.1.0/docs/breaking-changes.md), and the actual before/after npm audit results retained locally in `evidence/security-audit-before.json` and `evidence/security-audit-after.json`.
