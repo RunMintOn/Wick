@@ -54,13 +54,25 @@ npm run build
 
 ### 第 4 步：装 Skill
 
+**装 Wick 不会自动装 Skill。** 构建、打开控制台、首次启动都不碰 `~/.agents/skills`。没有这一步，Agent 读不到操作说明，也用不了 CLI。
+
+Skill 随源码保存，只有一个文件：
+
+| 位置 | 作用 |
+|---|---|
+| `skills/wick/SKILL.md` | 仓库里的源文件，Agent 实际操作说明 |
+| `~/.agents/skills/wick` | 安装后的软链，指向上面的目录；Agent 从这里发现 |
+
 ```bash
 npm run skill:install
 ```
 
-这一步把仓库里的 `skills/wick/SKILL.md` 软链到 `~/.agents/skills/wick`。装完后在新会话里用 `/skill:wick`，或由支持共享 Skill 目录的 Agent 自动发现。
+装完后在新会话里用 `/skill:wick`，或由支持共享 `~/.agents/skills` 目录的 Agent 自动发现。
 
-**源码目录不能删也不能挪**：Skill 靠软链指回来，移动后 Agent 的 CLI 全部失效。
+两个注意点：
+
+- 目标位置已有同名但指向别处的 Skill 时，脚本会报错退出，不会覆盖你的东西。
+- **源码目录不能删也不能挪**：软链指回来，移动后 Agent 的 CLI 全部失效。
 
 ### 第 5 步：登记服务
 
@@ -161,6 +173,12 @@ Use `WICK_HEADLESS=1 npm run test:e2e` to keep Electron test windows hidden.
 - Applying invalid configuration does not stop existing services. Fix the configuration, apply it again, then Refresh.
 
 Disabling every service's login switch leaves the lightweight manager available but starts no service. To stop the background manager for the current session, quit the console and use Process Compose's `down` command with the Wick socket. To disable the login background entirely, unload `dev.wick.manager` and move its plist to Trash; opening the app normally installs it again.
+
+## License
+
+MIT，见 [LICENSE](LICENSE)。
+
+Wick 自身以 MIT 发布。它调用的 [Process Compose](https://github.com/f1bonacc1/process-compose) 是独立项目，采用 Apache-2.0，不在本仓库内分发。
 
 ## Validation limits
 

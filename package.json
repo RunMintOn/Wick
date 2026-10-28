@@ -2,6 +2,7 @@
   "name": "wick",
   "version": "0.1.0",
   "private": true,
+  "license": "MIT",
   "description": "A small macOS console for native local services",
   "main": "src/main.cjs",
   "scripts": {
