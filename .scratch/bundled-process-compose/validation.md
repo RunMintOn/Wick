@@ -59,3 +59,18 @@ Replaced only `dist/Wick-darwin-arm64/Wick.app`, at its existing location. Opene
 Old App, bootstrap and source configuration are preserved locally in `evidence/backups/wick-before-bundled.Utw1BX/` (gitignored, contains private local configuration). Before/after observations and a hidden-window screenshot are in `evidence/local-update-before.json`, `evidence/local-update-after.json` and `evidence/local-updated-console.png`. No existing service actions or full business-level HTTP checks were performed during the real-environment probe.
 
 No relogin, dependency upgrades, push, DMG or Release in this follow-up. The user's normal App path still lives under `dist/`; do not remove or move that directory. A future default build overwrites this App, so use an independent `WICK_BUILD_OUT` for further verification.
+
+## Follow-up: bundled background activated — 2026-10-28
+
+The user explicitly accepted stopping and restarting all managed services to switch to the App's bundled Process Compose immediately.
+
+- Recorded all running/stopped states, component PIDs, autostart settings and HTTP response codes before shutdown.
+- Validated configuration with the bundled binary, normally shut down the old Homebrew manager, and waited for its process and the observed service descendants to exit.
+- Started the bundled manager through the existing `dev.wick.manager` login job, without unloading or changing its definition.
+- Restored the previous running set, including services with login autostart disabled. All 6 previously running services are running; all 5 previously stopped services remain stopped.
+- All 6 running service entry points returned the same HTTP response codes as before (five 200s and one 307 redirect). This is an entry-point check, not a full business/data audit.
+- Confirmed exactly one real manager, now using `dist/Wick-darwin-arm64/Wick.app/Contents/Resources/bin/process-compose` version 1.122.0; launchd supervises that PID.
+- Source configuration, login definition and bootstrap hashes were unchanged. Generated runtime was regenerated as part of normal background startup.
+- Opened the new console in a hidden window, confirmed it connected, then closed it. All service/component PIDs stayed unchanged across that window-close check, and only the bundled manager remained.
+
+Detailed before/after observations: `evidence/background-switch.json` (local, gitignored). Homebrew Process Compose remains installed but is no longer the running Wick manager. Actual logout/re-login was still not performed.
