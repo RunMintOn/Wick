@@ -4,7 +4,7 @@
 set -eu
 cd "$(dirname "$0")/.."
 name=${APP_DISPLAY_NAME:-Wick}
-plist="dist/Wick-darwin-arm64/Wick.app/Contents/Info.plist"
+plist="${WICK_BUILD_OUT:-dist}/Wick-darwin-arm64/Wick.app/Contents/Info.plist"
 [ -f "$plist" ] || { printf 'Missing %s\n' "$plist" >&2; exit 1; }
 /usr/bin/plutil -replace CFBundleName -string "$name" "$plist"
 /usr/bin/plutil -replace CFBundleDisplayName -string "$name" "$plist"

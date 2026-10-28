@@ -1,7 +1,7 @@
 ---
 name: wick
 description: 在 macOS 上操作 Wick：登记本机服务、接管已运行的后台进程、查询与启停服务、查看日志、设置登录自启、排查后台连接和异常恢复，以及移除登记。用户希望把终端里的 Web 或后端程序纳入图形管理时使用。
-compatibility: macOS，已安装 Wick 与 Process Compose；本地源码提供配置应用与恢复脚本。
+compatibility: macOS Apple Silicon；打包 Wick 自带 Process Compose、CLI 和运行时。直接运行源码另需 Node 与 Process Compose。
 disable-model-invocation: true
 ---
 
@@ -13,16 +13,20 @@ Wick 的控制台只负责展示和发送操作。Process Compose 管理本机�
 
 ## 找到实际环境
 
-此 Skill 随 Wick 源码保存，安装时通过目录软链接供 Agent 发现。将系统给出的 Skill 所在目录赋给 `SKILL_DIR`，先解析真实目录，再定位项目：
+此 Skill 随 App 提供，也保存在源码中。Agent 可以按用户要求直接读取，无需先创建软链接。将当前 Skill 所在目录赋给 `SKILL_DIR`（普通安装是 `/Applications/Wick.app/Contents/Resources/app/skills/wick`），先解析真实目录，再定位配套命令：
 
 ```bash
 PROJECT="$(cd -P "$SKILL_DIR" && cd ../.. && pwd -P)"
 HOME_DIR="${WICK_HOME:-$HOME/Library/Application Support/Wick}"
 SOCKET="$HOME_DIR/control.sock"
-PC="${WICK_PC:-/opt/homebrew/bin/process-compose}"
+wick() { /bin/sh "$PROJECT/bin/wick" "$@"; }
 ```
 
-确认项目的 `package.json` 的 `name` 是 `wick`，所需脚本存在，且 `PC` 可执行。`WICK_HOME` 用于覆盖数据目录，例如隔离测试；使用时保持为绝对路径。
+确认 `PROJECT/package.json` 的 `name` 是 `wick`，并执行 `wick --help`。打包版命令自动使用 App 内的 Electron 和 Process Compose，不需要 Node、npm、Homebrew 或源码。直接运行源码时需要 Node 与外部 Process Compose，默认 `/opt/homebrew/bin/process-compose`；`WICK_PC` 可覆盖两种运行方式的二进制。`WICK_HOME` 用于覆盖数据目录，例如隔离测试；使用时保持为绝对路径。
+
+可选软链接的默认位置是当前用户的 `~/.agents/skills/wick`。**先询问用户，只有同意后才执行 `wick skill:install`**；不创建也能继续当前任务。已有其他目录或指向别处的链接时保留，询问如何处理。软链接目标必须保持固定位置；普通安装依赖 App，不依赖源码目录。
+
+本 Skill 设置 `disable-model-invocation: true`。支持该字段的 Agent 需用户显式调用，不应由模型自动调用；名称和描述的可见性以对应实现为准。不支持此字段时以 Agent 自身行为为准。这不是文件访问限制，不阻止按用户要求直接读取。
 
 唯一配置是 `$HOME_DIR/services.yaml`，默认位于 `~/Library/Application Support/Wick/services.yaml`。`runtime.yaml` 是生成的 Process Compose 配置，不是另一份配置来源。保留现有服务和设置，只改本次任务涉及的内容。
 
@@ -124,9 +128,9 @@ processes:
 CLI 在服务标识后增加进程标识；控制台详情提供相同操作：
 
 ```bash
-npm run --silent service -- start neko neko-page
-npm run --silent service -- stop neko neko-page
-npm run --silent service -- restart neko neko-collector
+wick start neko neko-page
+wick stop neko neko-page
+wick restart neko neko-collector
 ```
 
 单独启动会自动满足依赖，但不启动无关组成进程。停止只停目标，不连带停止依赖或依赖方。单独重启只重启目标：依赖未就绪时拒绝操作，使用 Start 才会补齐依赖。
@@ -139,13 +143,13 @@ npm run --silent service -- restart neko neko-collector
 
 ### 校验与应用
 
-从项目目录执行，校验失败时停止后续应用：
+使用上面定义的 `wick` 命令，校验失败时停止后续应用：
 
 ```bash
-cd "$PROJECT" && npm run validate && npm run apply
+wick validate && wick apply
 ```
 
-这些集成脚本使用已安装的 Process Compose 校验配置，并通过已有接口重新加载生成的 runtime 配置。无效配置在触及运行中服务之前被拒绝。
+这些集成脚本使用配套 Process Compose 校验配置，并通过已有接口重新加载生成的 runtime 配置。无效配置在触及运行中服务之前被拒绝。
 
 展示信息和登录自启的修改不会重启服务；启动命令变化或移除登记可能停止或重启受影响的服务。没有自动监听源配置文件的机制，编辑后需要应用。登录自启的生效时机和确认方式见下文“登录自启”。
 
@@ -156,9 +160,8 @@ cd "$PROJECT" && npm run validate && npm run apply
 GUI 与 CLI 使用同一个私有 Unix socket。以下命令中的 `memos` 替换为目标服务标识：
 
 ```bash
-cd "$PROJECT"
-npm run --silent service -- list
-npm run --silent service -- start memos
+wick list
+wick start memos
 ```
 
 后台未运行时，先打开一次 Wick。应用配置不会启动未连接的管理器。集成 CLI 返回结构化状态，失败返回非零退出码。不要仅凭 stderr 判断失败；Process Compose 的 config-home debug 信息可能早于日志参数初始化出现。Wick 为子进程显式指定自己的配置目录，避免该无关诊断，不提高服务日志级别。直接调用 PC 时可设置 `PROC_COMP_CONFIG="$HOME_DIR"`。
@@ -185,9 +188,8 @@ SQLite 的有效数据可能仍在 `-wal` 中，运行中只复制 `.db` 会遗�
 查询与启动使用上面的 CLI，停止与重启使用：
 
 ```bash
-cd "$PROJECT"
-npm run --silent service -- stop memos
-npm run --silent service -- restart memos
+wick stop memos
+wick restart memos
 ```
 
 无需打开控制台，也无需模拟 TUI 按键。
@@ -231,7 +233,7 @@ curl --unix-socket "$SOCKET" 'http://localhost/process/logs/memos/0/200'
 先根据状态、重试次数和日志修复原因，再执行：
 
 ```bash
-cd "$PROJECT" && npm run recover -- memos
+wick recover memos
 ```
 
 该脚本与控制台 Start 使用相同机制：必要时仅改变目标服务生成的 runtime revision，通过已有服务端重载接口重新登记它。未修改服务保持原 PID，唯一源配置不变。

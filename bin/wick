@@ -1,0 +1,8 @@
+#!/bin/sh
+set -eu
+root="$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd -P)"
+electron="$root/../../MacOS/Wick"
+if [ -x "$electron" ]; then
+  ELECTRON_RUN_AS_NODE=1 exec "$electron" "$root/scripts/wick.cjs" "$@"
+fi
+exec node "$root/scripts/wick.cjs" "$@"

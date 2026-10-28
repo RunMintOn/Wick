@@ -16,7 +16,9 @@ class ServiceManager {
     this.config = path.join(home, 'services.yaml');
     this.socket = path.join(home, 'control.sock');
     this.runtime = path.join(home,'runtime.yaml');
-    this.binary = process.env.WICK_PC || '/opt/homebrew/bin/process-compose';
+    const resources=path.resolve(__dirname,'../..');
+    this.binary = process.env.WICK_PC || (path.basename(resources)==='Resources'
+      ? path.join(resources,'bin/process-compose') : '/opt/homebrew/bin/process-compose');
     this.starting = null;
   }
   async cli(args) {

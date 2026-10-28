@@ -8,40 +8,19 @@ A small macOS console for native local services. Electron supplies the window; P
 
 > 用法：把这一节整段贴给 Agent，或者只给它仓库地址并说「按 README 装 Wick」。
 
-**Wick 是界面层，不是服务管理器。** 它自己不启动、不守护、不重启任何进程。干活的是另一个开源项目 [Process Compose](https://github.com/f1bonacc1/process-compose)（Go 写的本机进程编排器，作用类似本地版 Docker Compose）。三者的分工：
+**Wick 是界面层，打包 App 已内置 Process Compose。** [Process Compose](https://github.com/f1bonacc1/process-compose) 是独立的开源本机进程编排器。普通安装无需再通过 Homebrew 安装它，也不需要 Node、npm 或源码目录。
 
 | 谁 | 干什么 |
 |---|---|
 | Process Compose | 真正启停、守护本机进程，持有控制 socket |
 | macOS launchd | 登录时拉起后台 |
-| Wick | 通过 socket 读状态、发操作，画成窗口和 CLI |
+| Wick | 通过 socket 读状态、发操作，提供窗口和 CLI |
 
-所以只有一句结论：**没有 Process Compose，Wick 什么都做不了，安装顺序不能反。**
+### 第 1 步：安装到固定位置
 
-### 第 1 步：确认环境
+先确认是 macOS Apple Silicon（`uname -m` 输出 `arm64`），检查 `/Applications/Wick.app` 是否已经安装；已安装时复用，不擅自覆盖或升级。若已有旧版缺少下文的包内 CLI，先与用户确认升级，不静默覆盖。
 
-```bash
-uname -m     # 必须是 arm64
-node -v      # 需要 22 及以上
-brew --version
-```
-
-不是 arm64 就停下来告诉用户：目前只提供 Apple Silicon 版本。
-
-### 第 2 步：装 Process Compose
-
-```bash
-brew install f1bonacc1/tap/process-compose
-process-compose version
-```
-
-装完确认能执行。默认找 `/opt/homebrew/bin/process-compose`；如果它在别处，之后每一步都要先 `export WICK_PC=<实际路径>`，否则 Wick 只会报找不到。
-
-Wick 在 Process Compose `1.122.0` 上验证过。版本差很多时先跟用户确认。
-
-### 第 3 步：取 Wick 源码
-
-Agent 要用的 Skill 和 CLI 都在源码里。只装一个 `.app` 的话，Agent 无法读取或修改配置。
+**目前尚未发布可下载的 Release。** 新安装暂时需要 Agent 从源码构建；构建机器需要 Node 22+ 和 macOS Command Line Tools，不需要安装 Process Compose。缺少构建工具时先说明并与用户确认安装方式。以后提供发布包时，直接安装 App 即可跳过构建：
 
 ```bash
 git clone https://github.com/RunMintOn/Wick.git
@@ -50,55 +29,64 @@ npm install
 npm run build
 ```
 
-产出 `dist/Wick-darwin-arm64/Wick.app`，未签名。首次安装会下载 Electron，需要几分钟。
-
-### 第 4 步：装 Skill
-
-**装 Wick 不会自动装 Skill。** 构建、打开控制台、首次启动都不碰 `~/.agents/skills`。没有这一步，Agent 读不到操作说明，也用不了 CLI。
-
-Skill 随源码保存，只有一个文件：
-
-| 位置 | 作用 |
-|---|---|
-| `skills/wick/SKILL.md` | 仓库里的源文件，Agent 实际操作说明 |
-| `~/.agents/skills/wick` | 安装后的软链，指向上面的目录；Agent 从这里发现 |
+产出 `dist/Wick-darwin-arm64/Wick.app`。首次构建会下载 Electron 和固定版本 Process Compose，需要几分钟。确认目标不存在后，把**整个 App** 复制到默认位置：
 
 ```bash
-npm run skill:install
+ditto dist/Wick-darwin-arm64/Wick.app /Applications/Wick.app
 ```
 
-装完后在新会话里用 `/skill:wick`，或由支持共享 `~/.agents/skills` 目录的 Agent 自动发现。
-
-两个注意点：
-
-- 目标位置已有同名但指向别处的 Skill 时，脚本会报错退出，不会覆盖你的东西。
-- **源码目录不能删也不能挪**：软链指回来，移动后 Agent 的 CLI 全部失效。
-
-### 第 5 步：登记服务
-
-Wick 默认配置里没有任何服务，第一次打开是空列表，这是正常状态，不是出错。把你的服务交给 Agent：
-
-> 读 `skills/wick/SKILL.md`，把 `/path/to/your-service` 登记进 Wick，端口 8080。
-
-只有 Agent 知道你的服务怎么启动、数据在哪、有没有已在跑的进程需要接管。唯一配置是 `~/Library/Application Support/Wick/services.yaml`。
-
-### 第 6 步：打开控制台
-
-```bash
-open dist/Wick-darwin-arm64/Wick.app
-```
-
-也可以先复制到 `Applications` 再打开。**必须从固定位置打开，不要从 Downloads 直接运行**：后台登录任务的启动命令记录的是 App 的绝对路径，之后再移动就会失效。
-
-首次正常启动会创建服务配置和用户级登录后台任务。默认配置没有服务，**不会导入或停止任何已有进程**；登录自启只启动各自开关已打开的服务。
-
-以后从 Releases 下载 dmg 时，拖进 Applications 后要去掉隔离标记，否则未签名应用会被 macOS 拦住：
+App 未签名、未公证。下载的 App 被 macOS 隔离标记拦截时，确认来源后执行：
 
 ```bash
 xattr -dr com.apple.quarantine /Applications/Wick.app
 ```
 
-`-r` 必须加，否则包内文件仍会被拦。
+**必须从固定位置运行。** 默认使用 `/Applications/Wick.app`；无权限时可与用户约定 `~/Applications/Wick.app`，后续路径一并替换。不要从 Downloads 或挂载的磁盘镜像运行：后台登录任务记录 App 的绝对路径。安装后的 Skill、CLI、Process Compose 都在 App 内，不依赖构建时的源码目录。
+
+### 第 2 步：读取 App 内的 Agent 操作说明
+
+将 `APP` 设为实际安装位置，直接读取 `$APP/Contents/Resources/app/skills/wick/SKILL.md`，无需先安装 Skill 或保留源码：
+
+```bash
+APP=/Applications/Wick.app
+SKILL_DIR="$APP/Contents/Resources/app/skills/wick"
+WICK="$APP/Contents/Resources/app/bin/wick"
+/bin/sh "$WICK" --help
+```
+
+App 提供的 CLI 使用包内 Electron 运行，不要求系统安装 Node 或 npm。
+
+### 第 3 步：询问是否创建可选 Skill 软链接
+
+**默认不创建，必须询问用户；用户同意后才执行：**
+
+```bash
+/bin/sh "$WICK" skill:install
+```
+
+默认的全局位置是当前用户的 `~/.agents/skills/wick`，指向 `$APP/Contents/Resources/app/skills/wick`。这不是所有用户共用的系统目录。目标已有无关目录或指向别处的软链接时，安装器保留原内容并报错；先询问如何处理，不自动覆盖。选择不创建也不影响当前 Agent 直接读取说明、使用 CLI。
+
+本 Skill 设置了 **`disable-model-invocation: true`**。支持此字段的 Agent 不应自动调用它，需用户显式调用；具体是否向模型展示名称或描述，取决于 Agent 的实现。软链接不等于自动加载或调用，也不阻止按用户要求直接读取文件。不支持该字段的 Agent 以自身行为为准。
+
+### 第 4 步：打开控制台，登记并验证服务
+
+```bash
+open "$APP"
+/bin/sh "$WICK" list
+```
+
+首次正常启动会创建配置和用户级登录后台任务。默认服务列表为空，**不会导入或停止已有进程**。
+
+按已读取的 Skill 查明用户目标服务的启动方式、端口、数据路径及已有实例，再修改唯一配置 `~/Library/Application Support/Wick/services.yaml`。先校验，再应用，然后启动并验证：
+
+```bash
+/bin/sh "$WICK" validate
+/bin/sh "$WICK" apply
+/bin/sh "$WICK" start <service-id>
+/bin/sh "$WICK" list
+```
+
+完成条件：实际服务入口可访问，配置和日志正常，未修改的服务未被重启；说明登录自启设置。关闭窗口只退出控制台，服务继续运行。
 
 ## Daily use
 
@@ -117,28 +105,30 @@ Ask your Agent to read the [Wick Skill](skills/wick/SKILL.md) and register an in
 
 The Chinese [Wick Skill](skills/wick/SKILL.md) covers service registration, configuration and commands, existing-process takeover and data handling, daily operations, login autostart, recovery and troubleshooting.
 
-For Agent operations, use `npm run --silent service -- list` or `start|stop|restart <service> [process]`. The CLI and console share the same management interface; CLI queries return JSON. Component stop/restart requires impact confirmation when dependents are active (`--confirm-impact` after confirmation). Stderr alone does not mean failure. Existing-process takeover records the old login policy and asks whether to retain it, disables the old manager registration without deleting its recovery configuration, and verifies data and unrelated service PIDs.
+For packaged Agent operations, use `/bin/sh "$WICK" list` or `start|stop|restart <service> [process]`, with `WICK` set as above. The CLI and console share the same management interface; CLI queries return JSON. Component stop/restart requires impact confirmation when dependents are active (`--confirm-impact` after confirmation). Stderr alone does not mean failure. Existing-process takeover records the old login policy and asks whether to retain it, disables the old manager registration without deleting its recovery configuration, and verifies data and unrelated service PIDs.
 
 ```bash
-npm run skill:install
+/bin/sh "$WICK" skill:install
 ```
 
-This links the repository's Skill into `~/.agents/skills/wick`, preserving an existing unrelated Skill. Keep the repository at its installed location. Pi discovers this shared directory; run `/reload` in an existing session or start a new session, then use `/skill:wick` when an explicit invocation is useful. Other Agents that support the shared Agent Skills directory can discover it too.
+Only run this after asking the user. It links the installed App's Skill into `~/.agents/skills/wick`, preserving an existing unrelated entry. Keep the App at its installed location. Agents supporting the shared skills directory can discover it; reload their skills or start a new session as needed. Invocation depends on support for `disable-model-invocation: true`, as described above.
 
 ### Registering a service
 
 ```mermaid
 flowchart LR
     A[Ask your Agent] --> B[Add to services.yaml]
-    B --> C[npm run validate]
+    B --> C[wick validate]
     C -->|invalid| D[Rejected, running services untouched]
-    C -->|valid| E[npm run apply]
+    C -->|valid| E[wick apply]
     E --> F[Start and verify]
 ```
 
 `services.yaml` is the only configuration source; `runtime.yaml` is generated. Always validate before applying, and never run `process-compose project update -f services.yaml` directly.
 
 ## Develop and verify
+
+Direct source development still requires Node 22+ and a separately installed Process Compose (`brew install f1bonacc1/tap/process-compose`). The default source binary is `/opt/homebrew/bin/process-compose`; `WICK_PC` can override it in both source and packaged runs. Packaged runs default to their own pinned 1.122.0 binary.
 
 ```bash
 npm install
@@ -154,7 +144,11 @@ The optional measurement command requires the macOS Command Line Tools and a com
 
 The application icon source is the transparent 1024×1024 PNG in `assets/icon.png`. Each build uses macOS `sips` and `iconutil` to generate all required sizes and package `assets/icon.icns`. To update the artwork, replace the PNG and rebuild.
 
-The build produces a local unsigned Apple Silicon app. It is not a signed public release. `npm run build` replaces its own generated output only.
+The build produces a local unsigned Apple Silicon app. It is not a signed public release. `npm run build` replaces its own generated output only. Set `WICK_BUILD_OUT` to an absolute temporary directory to avoid replacing an App you use daily. The build verifies the official Process Compose archive's pinned SHA-256 and includes its upstream license. Downloaded archives are cached under `.cache/` and reverified on every build.
+
+Source developers can run `/bin/sh bin/wick --help` or use the existing npm scripts. `npm run skill:install` links the source Skill instead of the App's copy; this is optional and requires keeping the source directory fixed. Do not run either Skill installer without asking the user.
+
+Packaged onboarding is tested with `WICK_TEST_BUNDLE=/absolute/path/to/Wick.app node --test tests/packaged-agent.test.cjs`. It uses a temporary home, a hidden window and a PATH without Node/Homebrew; results are written to `.scratch/bundled-process-compose/evidence/packaged-agent.json`.
 
 Set `WICK_HOME` to an absolute temporary directory for isolated testing. This also prevents the GUI from installing the normal login job. Integration tests use real Process Compose; login tests use distinct launchd labels and remove those jobs afterward. Run tests sequentially.
 
@@ -167,7 +161,7 @@ Use `WICK_HEADLESS=1 npm run test:e2e` to keep Electron test windows hidden.
 - Recent logs: last 200 lines, capped at 128 KiB in the console.
 - Service log files: native rotation, by default 1 MiB plus 2 backups.
 - Bootstrap diagnostics: `startup.log`, replaced on background startup.
-- Default crash recovery: 3 automatic retries, 2-second backoff. The count accumulates for that service's current registration; it is not a sliding time-window counter. After exhaustion, fix the cause and use the console's Start or `npm run recover -- <service>`.
+- Default crash recovery: 3 automatic retries, 2-second backoff. The count accumulates for that service's current registration; it is not a sliding time-window counter. After exhaustion, fix the cause and use the console's Start or `/bin/sh "$WICK" recover <service>`.
 - Process Compose does not reliably identify whether signal exit `-1` was a manual stop. The console shows the exit code and an explanation rather than inventing the cause.
 - If an operation was interrupted and left `operation.lock`, check that no Wick configuration/start operation is running, then move that generated lock to Trash and retry.
 - Applying invalid configuration does not stop existing services. Fix the configuration, apply it again, then Refresh.
@@ -178,7 +172,7 @@ Disabling every service's login switch leaves the lightweight manager available 
 
 MIT，见 [LICENSE](LICENSE)。
 
-Wick 自身以 MIT 发布。它调用的 [Process Compose](https://github.com/f1bonacc1/process-compose) 是独立项目，采用 Apache-2.0，不在本仓库内分发。
+Wick 自身以 MIT 发布。打包 App 内置的 [Process Compose](https://github.com/f1bonacc1/process-compose) 是独立项目，采用 Apache-2.0。其许可证随 App 放在 `Contents/Resources/licenses/process-compose/`，来源与版本见 [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md)。
 
 ## Validation limits
 
