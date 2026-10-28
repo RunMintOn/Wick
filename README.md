@@ -18,21 +18,25 @@ A small macOS console for native local services. Electron supplies the window; P
 
 ### 第 1 步：安装到固定位置
 
-先确认是 macOS Apple Silicon（`uname -m` 输出 `arm64`），检查 `/Applications/Wick.app` 是否已经安装；已安装时复用，不擅自覆盖或升级。若已有旧版缺少下文的包内 CLI，先与用户确认升级，不静默覆盖。
+先确认是 macOS 12 或更新版本、Apple Silicon（`uname -m` 输出 `arm64`），检查 `/Applications/Wick.app` 是否已经安装；已安装时复用，不擅自覆盖或升级。若已有旧版缺少下文的包内 CLI，先与用户确认升级，不静默覆盖。
 
-**目前尚未发布可下载的 Release。** 新安装暂时需要 Agent 从源码构建；构建机器需要 Node 22.12+ 和 macOS Command Line Tools，不需要安装 Process Compose。缺少构建工具时先说明并与用户确认安装方式。以后提供发布包时，直接安装 App 即可跳过构建：
+从 [GitHub Release](https://github.com/RunMintOn/Wick/releases/tag/v0.1.1) 下载 `Wick-0.1.1-darwin-arm64.dmg` 和对应的 `.sha256` 文件，校验后安装。**普通安装不需要构建工具，也不需要另装 Process Compose。** 可以在可写目录中执行：
 
 ```bash
-git clone https://github.com/RunMintOn/Wick.git
-cd Wick
-npm install
-npm run build
+curl -fL -o Wick-0.1.1-darwin-arm64.dmg \
+  https://github.com/RunMintOn/Wick/releases/download/v0.1.1/Wick-0.1.1-darwin-arm64.dmg
+curl -fL -o Wick-0.1.1-darwin-arm64.dmg.sha256 \
+  https://github.com/RunMintOn/Wick/releases/download/v0.1.1/Wick-0.1.1-darwin-arm64.dmg.sha256
+shasum -a 256 -c Wick-0.1.1-darwin-arm64.dmg.sha256
 ```
 
-产出 `dist/Wick-darwin-arm64/Wick.app`。首次构建会下载 Electron 和固定版本 Process Compose，需要几分钟。确认目标不存在后，把**整个 App** 复制到默认位置：
+校验失败就停止。打开 DMG，把 Wick 拖到 Applications；Agent 也可以用下面的命令。确认目标不存在后，复制**整个 App** 到默认位置，不从磁盘镜像直接运行：
 
 ```bash
-ditto dist/Wick-darwin-arm64/Wick.app /Applications/Wick.app
+MOUNT_DIR="$(mktemp -d)"
+hdiutil attach Wick-0.1.1-darwin-arm64.dmg -readonly -nobrowse -noautoopen -mountpoint "$MOUNT_DIR"
+ditto "$MOUNT_DIR/Wick.app" /Applications/Wick.app
+hdiutil detach "$MOUNT_DIR"
 ```
 
 App 未签名、未公证。下载的 App 被 macOS 隔离标记拦截时，确认来源后执行：
@@ -130,6 +134,8 @@ flowchart LR
 
 Direct source development still requires Node 22.12+ and a separately installed Process Compose (`brew install f1bonacc1/tap/process-compose`). The default source binary is `/opt/homebrew/bin/process-compose`; `WICK_PC` can override it in both source and packaged runs. Packaged runs default to their own pinned 1.122.0 binary.
 
+To build an App instead of downloading the release, clone `https://github.com/RunMintOn/Wick.git`, run `npm install` and `npm run build`, then copy `dist/Wick-darwin-arm64/Wick.app` to the fixed installation location. Building does not require a separate Process Compose installation; the first build downloads Electron and the pinned Process Compose archive.
+
 ```bash
 npm install
 npm start
@@ -146,9 +152,13 @@ The application icon source is the transparent 1024×1024 PNG in `assets/icon.pn
 
 The build produces a local unsigned Apple Silicon app. It is not a signed public release. `npm run build` replaces its own generated output only. Set `WICK_BUILD_OUT` to an absolute temporary directory to avoid replacing an App you use daily. The build verifies the official Process Compose archive's pinned SHA-256 and includes its upstream license. Downloaded archives are cached under `.cache/` and reverified on every build.
 
+`npm run dmg` builds the App and creates `Wick-<version>-darwin-arm64.dmg` plus its `.sha256` sidecar in the same output directory. The DMG contains the App and an Applications shortcut. It uses macOS `hdiutil`, with no extra packaging dependency.
+
 Source developers can run `/bin/sh bin/wick --help` or use the existing npm scripts. `npm run skill:install` links the source Skill instead of the App's copy; this is optional and requires keeping the source directory fixed. Do not run either Skill installer without asking the user.
 
 Packaged onboarding is tested with `WICK_TEST_BUNDLE=/absolute/path/to/Wick.app node --test tests/packaged-agent.test.cjs`. It uses a temporary home, a hidden window and a PATH without Node/Homebrew; results are written to `.scratch/bundled-process-compose/evidence/packaged-agent.json`.
+
+Set `WICK_TEST_DMG=/absolute/path/to/Wick-<version>-darwin-arm64.dmg` when running `tests/dmg.test.cjs` to verify the checksum, mount/copy/unmount flow, and Agent operations from the installed copy. It does not install into your real Applications directory.
 
 Set `WICK_HOME` to an absolute temporary directory for isolated testing. This also prevents the GUI from installing the normal login job. Integration tests use real Process Compose; login tests use distinct launchd labels and remove those jobs afterward. Run tests sequentially.
 

@@ -1,6 +1,6 @@
 {
   "name": "wick",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "license": "MIT",
   "description": "A small macOS console for native local services",
@@ -17,7 +17,8 @@
     "service": "node scripts/service.cjs",
     "icon": "sh scripts/build-icon.sh",
     "skill:install": "node scripts/install-skill.cjs",
-    "build": "npm run icon && node scripts/build.cjs"
+    "build": "npm run icon && node scripts/build.cjs",
+    "dmg": "npm run build && node scripts/build-dmg.cjs"
   },
   "dependencies": {
     "yaml": "^2.8.1"
