@@ -13,7 +13,7 @@ Wick 的控制台只负责展示和发送操作。Process Compose 管理本机�
 
 ## 找到实际环境
 
-此 Skill 随 App 提供，也保存在源码中。Agent 可以按用户要求直接读取，无需先创建软链接。将当前 Skill 所在目录赋给 `SKILL_DIR`（普通安装是 `/Applications/Wick.app/Contents/Resources/app/skills/wick`），先解析真实目录，再定位配套命令：
+将当前 Skill 所在目录赋给 `SKILL_DIR`，先解析真实目录，再定位配套命令：
 
 ```bash
 PROJECT="$(cd -P "$SKILL_DIR" && cd ../.. && pwd -P)"
@@ -23,10 +23,6 @@ wick() { /bin/sh "$PROJECT/bin/wick" "$@"; }
 ```
 
 确认 `PROJECT/package.json` 的 `name` 是 `wick`，并执行 `wick --help`。打包版命令自动使用 App 内的 Electron 和 Process Compose，不需要 Node、npm、Homebrew 或源码。直接运行源码时需要 Node 与外部 Process Compose，默认 `/opt/homebrew/bin/process-compose`；`WICK_PC` 可覆盖两种运行方式的二进制。`WICK_HOME` 用于覆盖数据目录，例如隔离测试；使用时保持为绝对路径。
-
-可选软链接的默认位置是当前用户的 `~/.agents/skills/wick`。**先询问用户，只有同意后才执行 `wick skill:install`**；不创建也能继续当前任务。已有其他目录或指向别处的链接时保留，询问如何处理。软链接目标必须保持固定位置；普通安装依赖 App，不依赖源码目录。
-
-本 Skill 设置 `disable-model-invocation: true`。支持该字段的 Agent 需用户显式调用，不应由模型自动调用；名称和描述的可见性以对应实现为准。不支持此字段时以 Agent 自身行为为准。这不是文件访问限制，不阻止按用户要求直接读取。
 
 唯一配置是 `$HOME_DIR/services.yaml`，默认位于 `~/Library/Application Support/Wick/services.yaml`。`runtime.yaml` 是生成的 Process Compose 配置，不是另一份配置来源。保留现有服务和设置，只改本次任务涉及的内容。
 
@@ -251,10 +247,8 @@ wick recover memos
 
 完成条件：明确是后台连接、配置、启动命令、端口还是服务本身的问题。只把实际完成的恢复和检查称为已验证。实际注销再登录与同会话的 launchd 启动验证分开记录。
 
-## 移除登记或更新控制台
+## 移除登记
 
 移除服务前先确认用户要停止服务还是连同登记一起移除。移除登记会影响该服务的运行；程序、依赖和数据默认保留。应用移除后确认其他服务未受影响。登记本身不授权删除笔记、迁移数据、卸载 OrbStack 或移除 Docker 容器。
-
-更新控制台只重建和重新打开 App。比较更新前后的服务 PID 与访问情况，避免为了替换界面去停止整个后台。安装位置改变后，启动固定位置的 App 更新其后台启动路径。
 
 完成条件：操作范围与用户要求一致；未授权的数据、程序和其他服务保持不动。报告最终状态，不把配置写入成功当作服务接入成功。
