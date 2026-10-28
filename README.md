@@ -4,17 +4,89 @@ A small macOS console for native local services. Electron supplies the window; P
 
 ![Wick 服务控制台](assets/wick-console.png)
 
-## Open the app
+## 给 Agent 的安装说明
 
-The Apple Silicon build is `dist/Wick-darwin-arm64/Wick.app`. You can open it directly, or copy it to Applications and open that copy. Open the app from its permanent location so the login bootstrap can find it later.
+> 用法：把这一节整段贴给 Agent，或者只给它仓库地址并说「按 README 装 Wick」。
 
-Prerequisite:
+**Wick 是界面层，不是服务管理器。** 它自己不启动、不守护、不重启任何进程。干活的是另一个开源项目 [Process Compose](https://github.com/f1bonacc1/process-compose)（Go 写的本机进程编排器，作用类似本地版 Docker Compose）。三者的分工：
+
+| 谁 | 干什么 |
+|---|---|
+| Process Compose | 真正启停、守护本机进程，持有控制 socket |
+| macOS launchd | 登录时拉起后台 |
+| Wick | 通过 socket 读状态、发操作，画成窗口和 CLI |
+
+所以只有一句结论：**没有 Process Compose，Wick 什么都做不了，安装顺序不能反。**
+
+### 第 1 步：确认环境
+
+```bash
+uname -m     # 必须是 arm64
+node -v      # 需要 22 及以上
+brew --version
+```
+
+不是 arm64 就停下来告诉用户：目前只提供 Apple Silicon 版本。
+
+### 第 2 步：装 Process Compose
 
 ```bash
 brew install f1bonacc1/tap/process-compose
+process-compose version
 ```
 
-First normal launch creates the service configuration and a user-level login background job. The default configuration has no services. **No existing processes are imported or stopped.** Login autostart only starts services whose individual switch is enabled.
+装完确认能执行。默认找 `/opt/homebrew/bin/process-compose`；如果它在别处，之后每一步都要先 `export WICK_PC=<实际路径>`，否则 Wick 只会报找不到。
+
+Wick 在 Process Compose `1.122.0` 上验证过。版本差很多时先跟用户确认。
+
+### 第 3 步：取 Wick 源码
+
+Agent 要用的 Skill 和 CLI 都在源码里。只装一个 `.app` 的话，Agent 无法读取或修改配置。
+
+```bash
+git clone https://github.com/RunMintOn/Wick.git
+cd Wick
+npm install
+npm run build
+```
+
+产出 `dist/Wick-darwin-arm64/Wick.app`，未签名。首次安装会下载 Electron，需要几分钟。
+
+### 第 4 步：装 Skill
+
+```bash
+npm run skill:install
+```
+
+这一步把仓库里的 `skills/wick/SKILL.md` 软链到 `~/.agents/skills/wick`。装完后在新会话里用 `/skill:wick`，或由支持共享 Skill 目录的 Agent 自动发现。
+
+**源码目录不能删也不能挪**：Skill 靠软链指回来，移动后 Agent 的 CLI 全部失效。
+
+### 第 5 步：登记服务
+
+Wick 默认配置里没有任何服务，第一次打开是空列表，这是正常状态，不是出错。把你的服务交给 Agent：
+
+> 读 `skills/wick/SKILL.md`，把 `/path/to/your-service` 登记进 Wick，端口 8080。
+
+只有 Agent 知道你的服务怎么启动、数据在哪、有没有已在跑的进程需要接管。唯一配置是 `~/Library/Application Support/Wick/services.yaml`。
+
+### 第 6 步：打开控制台
+
+```bash
+open dist/Wick-darwin-arm64/Wick.app
+```
+
+也可以先复制到 `Applications` 再打开。**必须从固定位置打开，不要从 Downloads 直接运行**：后台登录任务的启动命令记录的是 App 的绝对路径，之后再移动就会失效。
+
+首次正常启动会创建服务配置和用户级登录后台任务。默认配置没有服务，**不会导入或停止任何已有进程**；登录自启只启动各自开关已打开的服务。
+
+以后从 Releases 下载 dmg 时，拖进 Applications 后要去掉隔离标记，否则未签名应用会被 macOS 拦住：
+
+```bash
+xattr -dr com.apple.quarantine /Applications/Wick.app
+```
+
+`-r` 必须加，否则包内文件仍会被拦。
 
 ## Daily use
 
