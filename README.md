@@ -168,6 +168,21 @@ Use `WICK_HEADLESS=1 npm run test:e2e` to keep Electron test windows hidden.
 
 Disabling every service's login switch leaves the lightweight manager available but starts no service. To stop the background manager for the current session, quit the console and use Process Compose's `down` command with the Wick socket. To disable the login background entirely, unload `dev.wick.manager` and move its plist to Trash; opening the app normally installs it again.
 
+## Memory observations
+
+On 2026-10-28, local Apple Silicon measurements of the packaged App showed:
+
+| State | Observed physical footprint |
+|---|---|
+| Console open, hidden test window (3 samples) | 120–138 MiB across 4 Electron processes |
+| Console open, earlier visible-window observation | About 156 MiB |
+| Console closed | No console processes remained |
+| Existing Process Compose background, console closed | About 27.8 MiB |
+
+Closing the test window left the test service reachable with the same PID. Managed services consume their own memory, which is not included above.
+
+These are observations from before the bundled-dependency changes, not a fresh measurement of the latest build or a memory limit. Hidden and visible windows are different test conditions. Values use macOS `phys_footprint`; process sums are not exact unique physical RAM. RSS sums also include shared mappings. See `npm run measure` above for the isolated measurement workflow.
+
 ## License
 
 MIT，见 [LICENSE](LICENSE)。
@@ -178,4 +193,4 @@ Wick 自身以 MIT 发布。打包 App 内置的 [Process Compose](https://githu
 
 Real launchd bootstrap and supervision were exercised in the existing login session, including the packaged app's Node bootstrap. **Actual logout/re-login has not been tested**, because it would interrupt the user's session. No Memos data migration or OrbStack/Docker cleanup was performed.
 
-Resource observations, screenshots and test results are recorded with the MVP work under `.scratch`. RSS sums contain shared mappings; do not treat them as unique physical RAM. The current implementation has no guaranteed 150 MB GUI limit.
+Resource observations, screenshots and test results are recorded under `.scratch`.
