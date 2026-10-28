@@ -2,7 +2,7 @@
 
 A small macOS console for native local services. Electron supplies the window; Process Compose runs the services. No Docker or Linux VM.
 
-![page](image.png)
+![Wick 服务控制台](assets/wick-console.png)
 
 ## Open the app
 
