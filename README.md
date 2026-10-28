@@ -2,11 +2,13 @@
 
 A small macOS console for native local services. Electron supplies the window; Process Compose runs the services. No Docker or Linux VM.
 
+**默认推荐：[从 Release 下载安装](https://github.com/RunMintOn/Wick/releases/latest)。** 下载 DMG，把 Wick 拖到 Applications 即可。无需下载源码，也无需安装 Node、npm、Homebrew 或 Process Compose。首次打开的 macOS 拦截处理见下文。
+
 ![Wick 服务控制台](assets/wick-console.png)
 
-## 给 Agent 的安装说明
+## Release 安装（默认推荐，供 Agent 执行）
 
-> 用法：把这一节整段贴给 Agent，或者只给它仓库地址并说「按 README 装 Wick」。
+> 用法：把这一节整段贴给 Agent，或者只给它仓库地址并说「按 README 装 Wick」。默认下载已发布的 DMG，不克隆源码、不在本机编译；只有用户明确要求源码开发或自行构建时，才使用后面的开发说明。
 
 **Wick 是界面层，打包 App 已内置 Process Compose。** [Process Compose](https://github.com/f1bonacc1/process-compose) 是独立的开源本机进程编排器。普通安装无需再通过 Homebrew 安装它，也不需要 Node、npm 或源码目录。
 
@@ -130,11 +132,13 @@ flowchart LR
 
 `services.yaml` is the only configuration source; `runtime.yaml` is generated. Always validate before applying, and never run `process-compose project update -f services.yaml` directly.
 
-## Develop and verify
+## 源码开发与验证（仅开发者）
+
+This section is for developers modifying Wick or users explicitly choosing to build it themselves. It is not the normal installation path; use the Release instructions above to install Wick.
 
 Direct source development still requires Node 22.12+ and a separately installed Process Compose (`brew install f1bonacc1/tap/process-compose`). The default source binary is `/opt/homebrew/bin/process-compose`; `WICK_PC` can override it in both source and packaged runs. Packaged runs default to their own pinned 1.122.0 binary.
 
-To build an App instead of downloading the release, clone `https://github.com/RunMintOn/Wick.git`, run `npm install` and `npm run build`, then copy `dist/Wick-darwin-arm64/Wick.app` to the fixed installation location. Building does not require a separate Process Compose installation; the first build downloads Electron and the pinned Process Compose archive.
+To build the App yourself, clone `https://github.com/RunMintOn/Wick.git`, run `npm install` and `npm run build`, then copy `dist/Wick-darwin-arm64/Wick.app` to the fixed installation location. Building does not require a separate Process Compose installation; the first build downloads Electron and the pinned Process Compose archive.
 
 ```bash
 npm install
