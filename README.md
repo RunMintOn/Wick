@@ -1,6 +1,8 @@
 # Wick
 
-A small macOS console for native local services. Electron supplies the window; Process Compose runs the services. No Docker or Linux VM.
+A small macOS console for native local services. MyGo supplies the window using macOS's WKWebView; Process Compose runs the services. No bundled browser engine, Node runtime, Docker or Linux VM.
+
+> The source is now the MyGo-based 0.2.0, requiring macOS 13+ on Apple Silicon. It has not been published yet; the Release installation below still refers to the published Electron-based 0.1.1. Build 0.2.0 with `npm run dmg` to obtain the smaller package.
 
 **默认推荐：[从 Release 下载安装](https://github.com/RunMintOn/Wick/releases/latest)。** 下载 DMG，把 Wick 拖到 Applications 即可。无需下载源码，也无需安装 Node、npm、Homebrew 或 Process Compose。首次打开的 macOS 拦截处理见下文。
 
@@ -60,7 +62,7 @@ WICK="$APP/Contents/Resources/app/bin/wick"
 /bin/sh "$WICK" --help
 ```
 
-App 提供的 CLI 使用包内 Electron 运行，不要求系统安装 Node 或 npm。
+App 提供内置 CLI，不要求系统安装 Node 或 npm。
 
 ### 第 3 步：询问是否创建可选 Skill 软链接
 
@@ -136,37 +138,38 @@ flowchart LR
 
 This section is for developers modifying Wick or users explicitly choosing to build it themselves. It is not the normal installation path; use the Release instructions above to install Wick.
 
-Direct source development still requires Node 22.12+ and a separately installed Process Compose (`brew install f1bonacc1/tap/process-compose`). The default source binary is `/opt/homebrew/bin/process-compose`; `WICK_PC` can override it in both source and packaged runs. Packaged runs default to their own pinned 1.122.0 binary.
+Source development requires Go 1.27.3+; Node 22+ (or Bun's Node-compatible runner) runs the build scripts and E2E tests. There are no npm package dependencies. Installed users need none of these tools.
 
-To build the App yourself, clone `https://github.com/RunMintOn/Wick.git`, run `npm install` and `npm run build`, then copy `dist/Wick-darwin-arm64/Wick.app` to the fixed installation location. Building does not require a separate Process Compose installation; the first build downloads Electron and the pinned Process Compose archive.
+The default source Process Compose is `/opt/homebrew/bin/process-compose`; set `WICK_PC` to override it. Building bundles the pinned 1.122.0 binary automatically, so no Homebrew installation is needed to build or run the App.
+
+Clone `https://github.com/RunMintOn/Wick.git`, then:
 
 ```bash
-npm install
-npm start
+npm run dmg
 npm run check
 npm test
 npm run test:e2e
-npm run build
-npm run measure
 ```
 
-The optional measurement command requires the macOS Command Line Tools and a completed build. It launches only isolated test services, captures the complete Electron process tree and macOS physical-footprint counters, saves screenshots/results, then stops the test processes.
+The App is `build/Wick-darwin-arm64/Wick.app`. The DMG and its `.sha256` sidecar are in `build/`. The old `dist/` output is left untouched. `npm run build` builds just the App; `npm start` runs the Go source and needs an external Process Compose (or `WICK_PC` pointing at the built App's binary).
+
+The frontend is embedded directly into the Go executable; no frontend bundler or development server is required. `src/bridge.js` maps the existing UI operations to MyGo's Go bindings. The CLI and console share `internal/wick`.
 
 The application icon source is the transparent 1024×1024 PNG in `assets/icon.png`. Each build uses macOS `sips` and `iconutil` to generate all required sizes and package `assets/icon.icns`. To update the artwork, replace the PNG and rebuild.
 
-The build produces a local unsigned Apple Silicon app. It is not a signed public release. `npm run build` replaces its own generated output only. Set `WICK_BUILD_OUT` to an absolute temporary directory to avoid replacing an App you use daily. The build verifies the official Process Compose archive's pinned SHA-256 and includes its upstream license. Downloaded archives are cached under `.cache/` and reverified on every build.
+The build produces a local unsigned/unnotarized Apple Silicon App. It replaces its generated App in `build/`, not a daily installation elsewhere. `WICK_BUILD_OUT` overrides the output directory; do not point it at a daily installation. The build verifies the pinned Process Compose archive and includes its upstream license plus the licenses of the linked Go modules.
 
 `npm run dmg` builds the App and creates `Wick-<version>-darwin-arm64.dmg` plus its `.sha256` sidecar in the same output directory. The DMG contains the App and an Applications shortcut. It uses macOS `hdiutil`, with no extra packaging dependency.
 
 Source developers can run `/bin/sh bin/wick --help` or use the existing npm scripts. `npm run skill:install` links the source Skill instead of the App's copy; this is optional and requires keeping the source directory fixed. Do not run either Skill installer without asking the user.
 
-Packaged onboarding is tested with `WICK_TEST_BUNDLE=/absolute/path/to/Wick.app node --test tests/packaged-agent.test.cjs`. It uses a temporary home, a hidden window and a PATH without Node/Homebrew; results are written to `.scratch/bundled-process-compose/evidence/packaged-agent.json`.
+`go test ./...` exercises real Process Compose in isolated data directories: lifecycle, configuration apply, autostart, component dependencies, recovery and a separately labelled launchd job. Build the App first. Tests use the bundled Process Compose by default; `WICK_PC` overrides it.
 
-Set `WICK_TEST_DMG=/absolute/path/to/Wick-<version>-darwin-arm64.dmg` when running `tests/dmg.test.cjs` to verify the checksum, mount/copy/unmount flow, and Agent operations from the installed copy. It does not install into your real Applications directory.
+`npm run test:e2e` tests the DMG mount/copy/unmount flow and the installed CLI with Node/Homebrew absent from PATH, including a real HTTP service and optional Skill linking inside a temporary home. It also tests the actual hidden WKWebView using MyGo's automation plugin in an E2E-only binary, including rendering, service start, logs, autostart and service survival after closing the window. The release binary excludes this automation plugin.
 
-Set `WICK_HOME` to an absolute temporary directory for isolated testing. This also prevents the GUI from installing the normal login job. Integration tests use real Process Compose; login tests use distinct launchd labels and remove those jobs afterward. Run tests sequentially.
+Results and a screenshot are retained in `.scratch/mygo-migration/evidence/`. `WICK_TEST_BUNDLE` and `WICK_TEST_DMG` override the tested artifacts. `WICK_BUILD_OUT` is also honored by the E2E runner.
 
-Use `WICK_HEADLESS=1 npm run test:e2e` to keep Electron test windows hidden.
+Set `WICK_HOME` to an absolute temporary directory for isolated use; this prevents the GUI from installing the normal login job. `WICK_HEADLESS=1` hides the window and prevents application activation. Tests use these settings automatically and do not operate the user's desktop. Run tests after building, not concurrently with a build replacing their binaries.
 
 ## Background and troubleshooting
 
@@ -182,20 +185,17 @@ Use `WICK_HEADLESS=1 npm run test:e2e` to keep Electron test windows hidden.
 
 Disabling every service's login switch leaves the lightweight manager available but starts no service. To stop the background manager for the current session, quit the console and use Process Compose's `down` command with the Wick socket. To disable the login background entirely, unload `dev.wick.manager` and move its plist to Trash; opening the app normally installs it again.
 
-## Memory observations
+## Package size
 
-On 2026-10-28, local Apple Silicon measurements of the packaged App showed:
+The MyGo migration removes Electron and reuses the system WKWebView. The UI, CLI and configuration logic are compiled into one Go executable; Process Compose remains bundled.
 
-| State | Observed physical footprint |
+| Artifact | Approximate size |
 |---|---|
-| Console open, hidden test window (3 samples) | 120–138 MiB across 4 Electron processes |
-| Console open, earlier visible-window observation | About 156 MiB |
-| Console closed | No console processes remained |
-| Existing Process Compose background, console closed | About 27.8 MiB |
+| Published 0.1.1 DMG (Electron) | 158 MB |
+| Local 0.2.0 DMG (MyGo) | 23.4 MB |
+| Local 0.2.0 App, expanded | 56.3 MB |
 
-Closing the test window left the test service reachable with the same PID. Managed services consume their own memory, which is not included above.
-
-These are observations from before the bundled-dependency changes, not a fresh measurement of the latest build or a memory limit. Hidden and visible windows are different test conditions. Values use macOS `phys_footprint`; process sums are not exact unique physical RAM. RSS sums also include shared mappings. See `npm run measure` above for the isolated measurement workflow.
+These are disk/download sizes, not RAM measurements. Exact bytes and verification results are recorded in [.scratch/mygo-migration/validation.md](.scratch/mygo-migration/validation.md).
 
 ## License
 
@@ -205,6 +205,6 @@ Wick 自身以 MIT 发布。打包 App 内置的 [Process Compose](https://githu
 
 ## Validation limits
 
-Real launchd bootstrap and supervision were exercised in the existing login session, including the packaged app's Node bootstrap. **Actual logout/re-login has not been tested**, because it would interrupt the user's session. No Memos data migration or OrbStack/Docker cleanup was performed.
+Real launchd bootstrap and supervision were exercised in the existing login session using the Go executable. **Actual logout/re-login has not been tested**, because it would interrupt the user's session. macOS 13+ is the deployment target: MyGo requires Go 1.27, which dropped macOS 12 support. Verification ran on macOS 15.7.9 arm64, not every supported OS version. The App remains unsigned/unnotarized. No daily installation, managed service or user data was migrated.
 
 Resource observations, screenshots and test results are recorded under `.scratch`.
