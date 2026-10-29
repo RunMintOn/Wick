@@ -151,7 +151,7 @@ npm test
 npm run test:e2e
 ```
 
-The App is `build/Wick-darwin-arm64/Wick.app`. The DMG and its `.sha256` sidecar are in `build/`. The old `dist/` output is left untouched. `npm run build` builds just the App; `npm start` runs the Go source and needs an external Process Compose (or `WICK_PC` pointing at the built App's binary).
+The App is `build/Wick-darwin-arm64/Wick.app`. The DMG and its `.sha256` sidecar are in `build/`. The pre-migration `dist/` output is no longer produced. `npm run build` builds just the App; `npm start` runs the Go source and needs an external Process Compose (or `WICK_PC` pointing at the built App's binary).
 
 The frontend is embedded directly into the Go executable; no frontend bundler or development server is required. `src/bridge.js` maps the existing UI operations to MyGo's Go bindings. The CLI and console share `internal/wick`.
 
@@ -205,6 +205,6 @@ Wick 自身以 MIT 发布。打包 App 内置的 [Process Compose](https://githu
 
 ## Validation limits
 
-Real launchd bootstrap and supervision were exercised in the existing login session using the Go executable. **Actual logout/re-login has not been tested**, because it would interrupt the user's session. macOS 13+ is the deployment target: MyGo requires Go 1.27, which dropped macOS 12 support. Verification ran on macOS 15.7.9 arm64, not every supported OS version. The App remains unsigned/unnotarized. No daily installation, managed service or user data was migrated.
+Real launchd bootstrap and supervision were exercised in the existing login session using the Go executable. **Actual logout/re-login has not been tested**, because it would interrupt the user's session. macOS 13+ is the deployment target: MyGo requires Go 1.27, which dropped macOS 12 support. Verification ran on macOS 15.7.9 arm64, not every supported OS version. The App remains unsigned/unnotarized. The author's own installation was replaced with this build afterwards; that swap is recorded in `.scratch/mygo-migration/validation.md`.
 
 Resource observations, screenshots and test results are recorded under `.scratch`.
