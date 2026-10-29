@@ -1,33 +1,21 @@
 {
   "name": "wick",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "private": true,
   "license": "MIT",
   "description": "A small macOS console for native local services",
-  "main": "src/main.cjs",
   "scripts": {
-    "start": "electron .",
-    "test": "node --test --test-concurrency=1 tests/*.test.cjs",
-    "test:e2e": "playwright test",
-    "measure": "node tests/measure.cjs",
-    "check": "tsc --noEmit",
-    "validate": "node scripts/config.cjs --check",
-    "apply": "node scripts/config.cjs",
-    "recover": "node scripts/recover.cjs",
-    "service": "node scripts/service.cjs",
+    "start": "go run .",
+    "test": "go test ./...",
+    "test:e2e": "node --test --test-concurrency=1 tests/*.test.cjs",
+    "check": "go vet ./...",
+    "validate": "go run . validate",
+    "apply": "go run . apply",
+    "recover": "go run . recover",
+    "service": "go run .",
     "icon": "sh scripts/build-icon.sh",
-    "skill:install": "node scripts/install-skill.cjs",
+    "skill:install": "go run . skill:install",
     "build": "npm run icon && node scripts/build.cjs",
     "dmg": "npm run build && node scripts/build-dmg.cjs"
-  },
-  "dependencies": {
-    "yaml": "^2.8.1"
-  },
-  "devDependencies": {
-    "@electron/packager": "^20.3.0",
-    "@playwright/test": "^1.58.0",
-    "@types/node": "^24.0.0",
-    "electron": "^43.8.4",
-    "typescript": "^5.9.3"
   }
 }

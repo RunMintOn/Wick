@@ -1,4 +1,5 @@
 const fs=require('node:fs/promises');
+const {existsSync}=require('node:fs');
 const path=require('node:path');
 const os=require('node:os');
 const {createHash}=require('node:crypto');
@@ -8,7 +9,7 @@ const version='1.122.0';
 const checksum='eaa1238a1d6c300e928ef855d36a3d95aab8da64997104d74ea73d91d3cb6c60';
 const filename='process-compose_darwin_arm64.tar.gz';
 const url=`https://github.com/F1bonacc1/process-compose/releases/download/v${version}/${filename}`;
-const out=path.resolve(root,process.env.WICK_BUILD_OUT||'dist');
+const out=path.resolve(root,process.env.WICK_BUILD_OUT||'build');
 (async()=>{
   if(process.platform!=='darwin'||process.arch!=='arm64')throw new Error('Build Wick on an Apple Silicon Mac.');
   const cache=path.join(root,'.cache',`process-compose-${version}`);
@@ -25,12 +26,36 @@ const out=path.resolve(root,process.env.WICK_BUILD_OUT||'dist');
     }
     if(createHash('sha256').update(bytes).digest('hex')!==checksum)throw new Error(`Process Compose checksum mismatch. Move ${archive} to Trash and retry.`);
     await fs.writeFile(archive,bytes);
-    execFileSync(process.execPath,[path.join(root,'node_modules/@electron/packager/bin/electron-packager.mjs'),
-      '.', 'Wick','--platform=darwin','--arch=arm64',`--out=${out}`,'--overwrite','--no-asar',
-      '--icon=assets/icon.icns','--app-bundle-id=dev.wick',
-      '--ignore=^/(dist|tests|docs|preview|test-results|playwright-report|\\.scratch|\\.git|\\.cache)(/|$)'
-    ],{cwd:root,stdio:'inherit'});
-    const resources=path.join(out,'Wick-darwin-arm64/Wick.app/Contents/Resources');
+    const {version:appVersion}=require('../package.json');
+    const contents=path.join(out,'Wick-darwin-arm64/Wick.app/Contents');
+    const resources=path.join(contents,'Resources');
+    if(existsSync(path.dirname(contents)))execFileSync('/usr/bin/trash',[path.dirname(contents)]);
+    await fs.mkdir(path.join(contents,'MacOS'),{recursive:true});
+    await fs.mkdir(path.join(resources,'app/bin'),{recursive:true});
+    execFileSync('go',['build','-trimpath','-tags','mygo_noinspector',
+      '-ldflags',`-s -w -X main.version=${appVersion} -X github.com/egoist/mygo.production=1`,
+      '-o',path.join(contents,'MacOS/Wick'),'.'],
+    {cwd:root,env:{...process.env,CGO_ENABLED:'0'},stdio:'inherit'});
+    await fs.writeFile(path.join(contents,'Info.plist'),`<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict>
+<key>CFBundleName</key><string>Wick</string>
+<key>CFBundleDisplayName</key><string>Wick</string>
+<key>CFBundleExecutable</key><string>Wick</string>
+<key>CFBundleIdentifier</key><string>dev.wick</string>
+<key>CFBundlePackageType</key><string>APPL</string>
+<key>CFBundleShortVersionString</key><string>${appVersion}</string>
+<key>CFBundleVersion</key><string>${appVersion}</string>
+<key>CFBundleIconFile</key><string>icon.icns</string>
+<key>LSMinimumSystemVersion</key><string>13.0</string>
+<key>NSHighResolutionCapable</key><true/>
+</dict></plist>
+`);
+    await fs.copyFile(path.join(root,'assets/icon.icns'),path.join(resources,'icon.icns'));
+    await fs.copyFile(path.join(root,'bin/wick'),path.join(resources,'app/bin/wick'));
+    await fs.cp(path.join(root,'skills'),path.join(resources,'app/skills'),{recursive:true});
+    for(const file of ['package.json','LICENSE','THIRD-PARTY-NOTICES.md'])
+      await fs.copyFile(path.join(root,file),path.join(resources,'app',file));
     execFileSync('/usr/bin/tar',['-xzf',archive,'-C',staging,'process-compose','LICENSE','README.md']);
     await fs.mkdir(path.join(resources,'bin'),{recursive:true});
     await fs.copyFile(path.join(staging,'process-compose'),path.join(resources,'bin/process-compose'));
@@ -38,14 +63,25 @@ const out=path.resolve(root,process.env.WICK_BUILD_OUT||'dist');
     const licenses=path.join(resources,'licenses/process-compose');
     await fs.mkdir(licenses,{recursive:true});
     for(const file of ['LICENSE','README.md'])await fs.copyFile(path.join(staging,file),path.join(licenses,file));
-    const electronLicenses=path.join(resources,'licenses/electron');
-    await fs.mkdir(electronLicenses,{recursive:true});
-    for(const file of ['LICENSE','LICENSES.chromium.html']){
-      await fs.copyFile(path.join(out,'Wick-darwin-arm64',file),path.join(electronLicenses,file));
+    const linked=new Set(execFileSync('go',['list','-deps','-f','{{if .Module}}{{.Module.Path}}{{end}}','.'],
+      {cwd:root,env:{...process.env,CGO_ENABLED:'0'},encoding:'utf8'}).trim().split('\n'));
+    const modules=execFileSync('go',['list','-m','-json','all'],{cwd:root,encoding:'utf8'})
+      .trim().split(/\n}\n(?={)/).map((part,i,all)=>JSON.parse(part+(i<all.length-1?'\n}':'')));
+    const goLicenses=path.join(resources,'licenses/go');
+    await fs.mkdir(goLicenses,{recursive:true});
+    const dependencies=modules.filter(m=>!m.Main&&linked.has(m.Path));
+    await fs.writeFile(path.join(goLicenses,'modules.txt'),dependencies
+      .map(m=>`${m.Path} ${m.Version}`).join('\n')+'\n');
+    for(const module of dependencies){
+      const target=path.join(goLicenses,module.Path);
+      await fs.mkdir(target,{recursive:true});
+      for(const file of await fs.readdir(module.Dir)){
+        if(/^(LICENSE|COPYING|COPYRIGHT|NOTICE|PATENTS)(\.|$)/i.test(file))
+          await fs.copyFile(path.join(module.Dir,file),path.join(target,file));
+      }
     }
     await fs.chmod(path.join(resources,'app/bin/wick'),0o755);
-    execFileSync('/bin/sh',[path.join(root,'scripts/set-display-name.sh')],{cwd:root,env:{...process.env,WICK_BUILD_OUT:out},stdio:'inherit'});
-    console.log(`Bundled Process Compose ${version}; SHA-256 ${checksum}`);
+    console.log(`Built ${path.dirname(contents)} with MyGo; bundled Process Compose ${version}.`);
   }finally{
     await fs.rm(staging,{recursive:true,force:true});
   }

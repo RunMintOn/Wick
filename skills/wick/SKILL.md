@@ -1,7 +1,7 @@
 ---
 name: wick
 description: 在 macOS 上操作和维护 Wick：登记本机服务、接管已有进程、查询与启停服务、查看日志、设置登录自启、排障、异常恢复、移除登记，以及更新 Wick。
-compatibility: macOS Apple Silicon；打包 Wick 自带 Process Compose、CLI 和运行时。直接运行源码另需 Node 与 Process Compose。
+compatibility: macOS 13+ Apple Silicon；打包 Wick 自带 Process Compose 和 Go CLI，界面使用系统 WKWebView。直接运行源码另需 Go 与 Process Compose。
 disable-model-invocation: true
 ---
 
@@ -22,7 +22,7 @@ SOCKET="$HOME_DIR/control.sock"
 wick() { /bin/sh "$PROJECT/bin/wick" "$@"; }
 ```
 
-确认 `PROJECT/package.json` 的 `name` 是 `wick`，并执行 `wick --help`。打包版命令自动使用 App 内的 Electron 和 Process Compose，不需要 Node、npm、Homebrew 或源码。直接运行源码时需要 Node 与外部 Process Compose，默认 `/opt/homebrew/bin/process-compose`；`WICK_PC` 可覆盖两种运行方式的二进制。`WICK_HOME` 用于覆盖数据目录，例如隔离测试；使用时保持为绝对路径。
+确认 `PROJECT/package.json` 的 `name` 是 `wick`，并执行 `wick --help`。打包版命令直接运行 App 内的 Go 可执行文件，使用内置 Process Compose，不需要 Node、npm、Homebrew 或源码。直接运行源码时需要 Go 与外部 Process Compose，默认 `/opt/homebrew/bin/process-compose`；`WICK_PC` 可覆盖两种运行方式的二进制。`WICK_HOME` 用于覆盖数据目录，例如隔离测试；使用时保持为绝对路径。
 
 服务查询与启停使用 `wick list`、`wick start|stop|restart`；配置修改使用 `wick validate`、`wick apply`；异常恢复使用 `wick recover`。参数以 `wick --help` 为准。更新 App 和移除登记没有专用 CLI 子命令，按下文对应流程执行。
 

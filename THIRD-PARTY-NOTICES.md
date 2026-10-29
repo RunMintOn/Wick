@@ -9,6 +9,11 @@ The upstream LICENSE and README are included in
 The build downloads the official release archive and verifies its pinned SHA-256.
 Source code: https://github.com/F1bonacc1/process-compose/tree/v1.122.0
 
-Wick's MIT license does not replace the licenses of Process Compose, Electron,
-or their dependencies. Electron's LICENSE and LICENSES.chromium.html are copied
-into `Wick.app/Contents/Resources/licenses/electron/`, so they accompany an App-only installation.
+Wick uses [MyGo 0.7.3](https://github.com/egoist/mygo/tree/v0.7.3), licensed
+under MIT, and the system WKWebView on macOS. No Electron, Chromium, Node.js
+or Bun runtime is included.
+
+The Go modules linked into Wick are listed in
+`Wick.app/Contents/Resources/licenses/go/modules.txt`, with their upstream
+license, copyright, notice and patent files in the corresponding directories.
+Wick's MIT license does not replace these third-party licenses.
