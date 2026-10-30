@@ -1,0 +1,145 @@
+{
+  "skill_name": "hyperframes-pitfalls",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "HyperFrames 0.8.216 的预览刚打开。我的旧补丁匹配不到标签了，当前文件多了 data-hf-id，用户还在编辑器里改了标题。我能恢复成打开预览前的文件再改吗？",
+      "expectations": [
+        "读取 editing 分支，先核对当前文件和变化。",
+        "保留用户标题及工具标识，局部修改；不恢复旧文件覆盖它们。"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "HyperFrames 根工程 check --json 返回 ok:true、browserSkipped:false、motion.enabled:false、motion.samples:0。compositions/demo.motion.json 已经写了断言，场景从整片第 5 秒开始，局部 bySec 为 4.6。运动已经验证通过了吗？",
+      "expectations": [
+        "明确运动断言未执行，不将顶层成功当成运动验证通过。",
+        "核对版本和检查目标；若采用根目录 index.motion.json，时间改为 9.6，并核对组装后的选择器。",
+        "复查实际读取位置、启用状态和采样结果。"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "HyperFrames 预览播放到第 26 秒，片尾图标 naturalWidth 是 0。片尾从第 28.5 秒开始。我想把所有没加载的图片一律判失败，或者反过来忽略所有不可见图片。",
+      "expectations": [
+        "按时间线区分未来素材和当前应显示的素材，两个一刀切方案都不可靠。",
+        "推进到片尾展示时间验证；若仍缺图应判为故障。",
+        "可见性 API 仅辅助筛选，不掩盖当前应显示但没显示的素材。"
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "为 HyperFrames 产品片取材：Windows 浏览器的隐藏页面截图少了一条状态指示。组件 DOM 还在，但我还没检查样式。直接给产品补一条状态条，或者强制结束所有动画，可以吗？",
+      "expectations": [
+        "读取 capture 分支，先比较正常运行图并测量样式和动画进度，不因 macOS 先例直接判定原因。",
+        "只在确认有限入场动画停滞、目标为静态终态时结束目标区域的动画。",
+        "不修改产品源码，也不强制结束所有动画。"
+      ]
+    },
+    {
+      "id": 5,
+      "prompt": "HyperFrames 视频素材来自一个嵌入式 WebView，正文和交互按钮都对，但完整窗口截图上的原生关闭按钮不在素材里。我是不是应该重画一套更漂亮的产品界面？",
+      "expectations": [
+        "区分 WebView 内容和原生窗口边界，先确认当前接口覆盖范围。",
+        "优先完整窗口取材，必要时使用有来源的真实外壳裁片并记录合成。",
+        "不借机重画产品功能界面。"
+      ]
+    },
+    {
+      "id": 6,
+      "prompt": "HyperFrames 编辑器多列出一个没用的注册表场景，它还有警告。我只借用了它的箭头，当前挂载和资源依赖还没查。把整个 compositions/components 目录删掉就干净了吧？",
+      "expectations": [
+        "核对挂载、导入和相对资源依赖，区分运行时组件与仅供参考的原件。",
+        "只把无运行依赖的参考原件移出场景发现目录，保留来源。",
+        "复查编辑器列表和实际效果，不批量删除组件目录。"
+      ]
+    },
+    {
+      "id": 7,
+      "prompt": "新版 HyperFrames 已从子合成旁读到了 motion spec，报告给出了对应 specPath、motion.enabled:true、motion.samples:80，断言也都通过了。需要为了兼容性迁到根目录吗？",
+      "expectations": [
+        "保持正常实现，不因 0.8.216 的观察而强制迁移。",
+        "将旧版本处理限定在当前确实复现的问题。"
+      ]
+    },
+    {
+      "id": 8,
+      "prompt": "给普通网站的登录页改一下按钮文字。这不是视频工程，也没有使用 HyperFrames。",
+      "expectations": [
+        "不触发本 Skill，不引入 HyperFrames 检查或取材流程。"
+      ]
+    },
+    {
+      "id": 9,
+      "prompt": "HyperFrames 0.8.216 网页把一个场景拆成两段；后段 data-playback-start=9.633。用户已提前绿色卡和结尾，但音乐淡出与根时长仍旧。我只缩短源 GSAP 的 Zoom，或者恢复拆段前的 index.html 就行吗？",
+      "expectations": [
+        "读取 editing，保留用户当前拆段、源偏移和无关编辑，先备份受影响文件。",
+        "区分影片时间与源时间；无变速时按 sourceTime=offset+(filmTime-start) 对齐，并评估共享源改动对各实例的影响。",
+        "只缩短目标动作或停留，同步转场、音效、淡出与根时长；核对拆点及最终输出尾帧。"
+      ]
+    },
+    {
+      "id": 10,
+      "prompt": "HyperFrames 0.8.216 的同一子合成有两个宿主 #demo 与 #demo-split。check 报 #title 的 motion_selector_ambiguous。我把后段删掉或随便取第一个 #title，就算验证好了吧？",
+      "expectations": [
+        "读取 verification，说明歧义使相关断言未执行。",
+        "保留两段，按意图以 #demo #title 或 #demo-split #title 限定唯一目标；before 两端也明确宿主。",
+        "重新检查目标唯一且断言实际执行，不用任意第一项代替预期实例。"
+      ]
+    },
+    {
+      "id": 11,
+      "prompt": "HyperFrames 0.8.216 片头 0–6 秒有持续动画，6 秒后已隐藏；keepsMoving 却报 6–20 秒 motion_frozen。要延长隐藏片头的动画到 20 秒，还是删断言后宣布全片运动通过？",
+      "expectations": [
+        "读取 verification，对照冻结区间与实际可见区间，不把已退出场景当可见冻结。",
+        "调整验证范围；不支持限定时，用有效展示区间的证据并标记自动验证边界。",
+        "不强行动画隐藏场景，不把移除断言等同于验证通过。"
+      ]
+    },
+    {
+      "id": 12,
+      "prompt": "HyperFrames 0.8.216 严格渲染报 Unsupported automation version: undefined。音频属性是 data-automation='{\"volume\":[{\"t\":0,\"v\":0.4}]}'。先把音轨删掉交付静音版怎么样？",
+      "expectations": [
+        "读取 editing，核对当前 schema；已观察版本使用 version:1、lanes、target:volume、points。",
+        "修正后实际渲染并检查有声输出，不绕过错误交付无声片。",
+        "不把音频测量说成已经试听，不把该版本格式强制外推到其他 schema。"
+      ]
+    },
+    {
+      "id": 13,
+      "prompt": "HyperFrames 产品视频仍要 16:9，但用户说画布里的应用窗口太宽扁、底部像被截断。素材原图较高，当前只取上方横向裁片；后面还有有意放大的功能特写。需要把整条视频改成竖版，或者把所有特写都缩小吗？",
+      "expectations": [
+        "读取 capture，区分视频画布比例与产品窗口比例。",
+        "完整窗口恢复原始比例和底边，空间不够就等比缩小，不靠裁底或拉伸。",
+        "保留有意的功能特写，核对接场几何位置与状态，不批量改动其他镜头。"
+      ]
+    },
+    {
+      "id": 14,
+      "prompt": "HyperFrames 0.8.216 单独看两个场景都正常，实际 MP4 里新背景进入时上一场景白色标题还叠在上面。能直接判定是 HyperFrames 合成器 bug，或把整个工程 z-index 全改掉吗？",
+      "expectations": [
+        "读取 editing，先定位旧标题退出时间、宿主重叠与 stacking context。",
+        "优先最小目标修正；已验证的处理是旧标题在新背景前退出，不把其他全局层级改法宣称为已验证。",
+        "核对实际 MP4 转场前、中、后的解码帧，不只看单场景快照。"
+      ]
+    },
+    {
+      "id": 15,
+      "prompt": "HyperFrames CLI render 成功，MP4 可解码，音轨测量没削波。用户说自己网页剪完导出肯定没问题，对吧？我们还没有操作过网页导出，也没有试听。",
+      "expectations": [
+        "读取 verification，结论仅覆盖实际验证过的 CLI 路径。",
+        "网页导出、试听分别标记未验证；既不保证它通过，也不推断必然失败。",
+        "可提供同一工程已验证的 CLI 渲染方式，不要求重做影片。"
+      ]
+    },
+    {
+      "id": 16,
+      "prompt": "HyperFrames 新开头的两张关键帧通过，独立高潮样片也通过，但接入旧片后中段明显慢。我准备重新做整片，或者把后面统一两倍速。下一步该怎么取最小证据？",
+      "expectations": [
+        "读取 editing 的局部与整片节奏分支，区分关键帧、完整起势样片和整片粗拼的验证范围。",
+        "先用旧片粗拼定位节奏断层；可复用时局部压缩等待与重复运镜，而非默认全片重做或倍速。",
+        "阶段验证不过度扩成成片流程，但保留原 Skill 的必要检查。"
+      ]
+    }
+  ]
+}
