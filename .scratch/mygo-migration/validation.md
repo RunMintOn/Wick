@@ -19,6 +19,8 @@ These are disk sizes, not RAM measurements.
 - DMG: `build/Wick-0.2.0-darwin-arm64.dmg`
 - Checksum: `build/Wick-0.2.0-darwin-arm64.dmg.sha256`
 - SHA-256: `891ee6a6fe4f08ea5d573eea75fa2e248a144e32bff8eec6bfaeaac1c567f261`
+  (this stage's local build; the published DMG was rebuilt and is recorded in
+  `.scratch/release-v0.2.0/validation.md`)
 
 ## Verification performed
 

@@ -2,7 +2,7 @@
 
 A small macOS console for native local services. MyGo supplies the window using macOS's WKWebView; Process Compose runs the services. No bundled browser engine, Node runtime, Docker or Linux VM.
 
-> The source is now the MyGo-based 0.2.0, requiring macOS 13+ on Apple Silicon. It has not been published yet; the Release installation below still refers to the published Electron-based 0.1.1. Build 0.2.0 with `npm run dmg` to obtain the smaller package.
+> 0.2.0 起改用 MyGo 与系统 WKWebView，安装包从 158 MB 降到 23.4 MB，系统要求相应变为 macOS 13+。旧的 Electron 版本见 [v0.1.1](https://github.com/RunMintOn/Wick/releases/tag/v0.1.1)。
 
 **默认推荐：[从 Release 下载安装](https://github.com/RunMintOn/Wick/releases/latest)。** 下载 DMG，把 Wick 拖到 Applications 即可。无需下载源码，也无需安装 Node、npm、Homebrew 或 Process Compose。首次打开的 macOS 拦截处理见下文。
 
@@ -22,23 +22,23 @@ A small macOS console for native local services. MyGo supplies the window using 
 
 ### 第 1 步：安装到固定位置
 
-先确认是 macOS 12 或更新版本、Apple Silicon（`uname -m` 输出 `arm64`），检查 `/Applications/Wick.app` 是否已经安装；已安装时复用，不擅自覆盖或升级。若已有旧版缺少下文的包内 CLI，先与用户确认升级，不静默覆盖。
+先确认是 macOS 13 或更新版本、Apple Silicon（`uname -m` 输出 `arm64`），检查 `/Applications/Wick.app` 是否已经安装；已安装时复用，不擅自覆盖或升级。若已有旧版缺少下文的包内 CLI，先与用户确认升级，不静默覆盖。
 
-从 [GitHub Release](https://github.com/RunMintOn/Wick/releases/tag/v0.1.1) 下载 `Wick-0.1.1-darwin-arm64.dmg` 和对应的 `.sha256` 文件，校验后安装。**普通安装不需要构建工具，也不需要另装 Process Compose。** 可以在可写目录中执行：
+从 [GitHub Release](https://github.com/RunMintOn/Wick/releases/tag/v0.2.0) 下载 `Wick-0.2.0-darwin-arm64.dmg` 和对应的 `.sha256` 文件，校验后安装。**普通安装不需要构建工具，也不需要另装 Process Compose。** 可以在可写目录中执行：
 
 ```bash
-curl -fL -o Wick-0.1.1-darwin-arm64.dmg \
-  https://github.com/RunMintOn/Wick/releases/download/v0.1.1/Wick-0.1.1-darwin-arm64.dmg
-curl -fL -o Wick-0.1.1-darwin-arm64.dmg.sha256 \
-  https://github.com/RunMintOn/Wick/releases/download/v0.1.1/Wick-0.1.1-darwin-arm64.dmg.sha256
-shasum -a 256 -c Wick-0.1.1-darwin-arm64.dmg.sha256
+curl -fL -o Wick-0.2.0-darwin-arm64.dmg \
+  https://github.com/RunMintOn/Wick/releases/download/v0.2.0/Wick-0.2.0-darwin-arm64.dmg
+curl -fL -o Wick-0.2.0-darwin-arm64.dmg.sha256 \
+  https://github.com/RunMintOn/Wick/releases/download/v0.2.0/Wick-0.2.0-darwin-arm64.dmg.sha256
+shasum -a 256 -c Wick-0.2.0-darwin-arm64.dmg.sha256
 ```
 
 校验失败就停止。打开 DMG，把 Wick 拖到 Applications；Agent 也可以用下面的命令。确认目标不存在后，复制**整个 App** 到默认位置，不从磁盘镜像直接运行：
 
 ```bash
 MOUNT_DIR="$(mktemp -d)"
-hdiutil attach Wick-0.1.1-darwin-arm64.dmg -readonly -nobrowse -noautoopen -mountpoint "$MOUNT_DIR"
+hdiutil attach Wick-0.2.0-darwin-arm64.dmg -readonly -nobrowse -noautoopen -mountpoint "$MOUNT_DIR"
 ditto "$MOUNT_DIR/Wick.app" /Applications/Wick.app
 hdiutil detach "$MOUNT_DIR"
 ```
@@ -187,13 +187,13 @@ Disabling every service's login switch leaves the lightweight manager available 
 
 ## Package size
 
-The MyGo migration removes Electron and reuses the system WKWebView. The UI, CLI and configuration logic are compiled into one Go executable; Process Compose remains bundled.
+0.2.0 removes Electron and reuses the system WKWebView. The UI, CLI and configuration logic are compiled into one Go executable; Process Compose remains bundled.
 
 | Artifact | Approximate size |
 |---|---|
-| Published 0.1.1 DMG (Electron) | 158 MB |
-| Local 0.2.0 DMG (MyGo) | 23.4 MB |
-| Local 0.2.0 App, expanded | 56.3 MB |
+| 0.1.1 DMG (Electron, previous release) | 158 MB |
+| 0.2.0 DMG (MyGo, this release) | 23.4 MB |
+| 0.2.0 App, expanded | 56.3 MB |
 
 These are disk/download sizes, not RAM measurements. Exact bytes and verification results are recorded in [.scratch/mygo-migration/validation.md](.scratch/mygo-migration/validation.md).
 
