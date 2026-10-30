@@ -35,7 +35,13 @@ Logs: `/tmp/wick-dmg-020.log`, `/tmp/wick-tests-020.log` (session-temporary).
 - Verified on macOS 15.7.9 arm64 only; macOS 13 and 14 were not run.
 - Actual logout/re-login and browser-download Gatekeeper interaction remain
   untested, matching 0.1.1's limits.
-- The user's `/Applications/Wick.app` already runs this build and was not
-  replaced again; no background restart or service change was performed here.
+- The user's `/Applications/Wick.app` already ran this build and was not
+  intentionally replaced; no background restart or service change was performed
+  here.
+- Verifying the README install snippets verbatim also ran the `ditto` copy into
+  `/Applications/Wick.app`, so the daily install now holds this rebuilt bundle
+  (binary hash matches `build/`). Same version and commit, data unchanged:
+  12 registered services, 2 running, manager PID untouched. The console process
+  that was open keeps its old image until it is reopened.
 - Promo video, external hosting and social posts are out of scope for this
   release and were not touched.
